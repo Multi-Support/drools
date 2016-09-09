@@ -55,7 +55,7 @@ public class JPAWorkItemManager implements WorkItemManager {
         WorkItemInfo workItemInfo = new WorkItemInfo( workItem, env );
 
         PersistenceContext context = getPersistenceContext();
-        workItemInfo = context.persist( workItemInfo );
+        workItemInfo = (WorkItemInfo) context.persist( workItemInfo );
 
         ((WorkItemImpl) workItem).setId( workItemInfo.getId() );
 
@@ -112,7 +112,7 @@ public class JPAWorkItemManager implements WorkItemManager {
     public void internalAbortWorkItem( long id ) {
         PersistenceContext context = getPersistenceContext();
 
-        WorkItemInfo workItemInfo = context.findWorkItemInfo( id );
+        WorkItemInfo workItemInfo = (WorkItemInfo) context.findWorkItem( id );
         // work item may have been aborted
         if ( workItemInfo != null ) {
             WorkItemImpl workItem = (WorkItemImpl) internalGetWorkItem( workItemInfo );
@@ -148,12 +148,12 @@ public class JPAWorkItemManager implements WorkItemManager {
         if ( this.workItems != null ) {
             workItemInfo = this.workItems.get( id );
             if ( workItemInfo != null ) {
-                workItemInfo = context.merge( workItemInfo );
+                workItemInfo = (WorkItemInfo) context.merge( workItemInfo );
             }
         }
 
         if ( workItemInfo == null ) {
-            workItemInfo = context.findWorkItemInfo( id );
+            workItemInfo = (WorkItemInfo) context.findWorkItem( id );
         }
 
         // work item may have been aborted
@@ -180,12 +180,12 @@ public class JPAWorkItemManager implements WorkItemManager {
         if ( this.workItems != null ) {
             workItemInfo = this.workItems.get( id );
             if ( workItemInfo != null ) {
-                workItemInfo = context.merge( workItemInfo );
+                workItemInfo = (WorkItemInfo) context.merge( workItemInfo );
             }
         }
 
         if ( workItemInfo == null ) {
-            workItemInfo = context.findWorkItemInfo( id );
+            workItemInfo = (WorkItemInfo) context.findWorkItem( id );
         }
 
         // work item may have been aborted
@@ -217,7 +217,7 @@ public class JPAWorkItemManager implements WorkItemManager {
         }
 
         if ( workItemInfo == null && context != null ) {
-            workItemInfo = context.findWorkItemInfo( id );
+            workItemInfo = (WorkItemInfo) context.findWorkItem( id );
         }
 
         if ( workItemInfo == null ) {

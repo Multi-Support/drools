@@ -22,27 +22,27 @@ import java.util.List;
 import java.util.Map;
 
 import org.drools.persistence.PersistenceContext;
-import org.drools.persistence.info.SessionInfo;
-import org.drools.persistence.info.WorkItemInfo;
+import org.drools.persistence.PersistentSession;
+import org.drools.persistence.PersistentWorkItem;
 
 public class MapBasedPersistenceContext
     implements
     PersistenceContext,
     NonTransactionalPersistentSession {
     
-    private Map<Long, SessionInfo> ksessions;
-    private Map<Long, WorkItemInfo> workItems;
+    private Map<Long, PersistentSession> ksessions;
+    private Map<Long, PersistentWorkItem> workItems;
     private boolean open;
     private KnowledgeSessionStorage storage;
     
     public MapBasedPersistenceContext(KnowledgeSessionStorage storage) {
         open = true;
         this.storage = storage;
-        this.ksessions = new HashMap<Long, SessionInfo>();
-        this.workItems = new HashMap<Long, WorkItemInfo>();
+        this.ksessions = new HashMap<Long, PersistentSession>();
+        this.workItems = new HashMap<Long, PersistentWorkItem>();
     }
     
-    public SessionInfo persist(SessionInfo entity) {
+    public PersistentSession persist(PersistentSession entity) {
         if( entity.getId() == null ) {
             entity.setId(storage.getNextStatefulKnowledgeSessionId());
         }
@@ -50,18 +50,18 @@ public class MapBasedPersistenceContext
         return entity;
     }
 
-    public SessionInfo findSessionInfo(Long sessionId) {
-        SessionInfo sessionInfo = ksessions.get( sessionId );
-        if(sessionInfo == null){
-            sessionInfo = storage.findSessionInfo( sessionId );
-            ksessions.put( sessionId, sessionInfo );
+    public PersistentSession findSession(Long sessionId) {
+        PersistentSession session = ksessions.get( sessionId );
+        if(session == null){
+            session = storage.findSessionInfo( sessionId );
+            ksessions.put( sessionId, session);
         }
-        return sessionInfo;
+        return session;
     }
 
     @Override
-    public void remove(SessionInfo sessionInfo) {
-        this.ksessions.remove(sessionInfo.getId());
+    public void remove(PersistentSession session) {
+        this.ksessions.remove(session.getId());
     }
 
     public boolean isOpen() {
@@ -85,46 +85,46 @@ public class MapBasedPersistenceContext
         workItems.clear();
     }
 
-    public List<SessionInfo> getStoredKnowledgeSessions() {
-        return Collections.unmodifiableList( new ArrayList<SessionInfo>(ksessions.values()) );
+    public List<PersistentSession> getStoredKnowledgeSessions() {
+        return Collections.unmodifiableList( new ArrayList<PersistentSession>(ksessions.values()) );
     }
     
-    public WorkItemInfo persist(WorkItemInfo workItemInfo) {
-        if( workItemInfo.getId() == null){
-            workItemInfo.setId( storage.getNextWorkItemId() );
+    public PersistentWorkItem persist(PersistentWorkItem workItem) {
+        if( workItem.getId() == null){
+            workItem.setId( storage.getNextWorkItemId() );
         }
-        workItems.put( workItemInfo.getId(), workItemInfo );
-        return workItemInfo;
+        workItems.put( workItem.getId(), workItem );
+        return workItem;
     }
 
-    public List<WorkItemInfo> getStoredWorkItems() {
-        return Collections.unmodifiableList( new ArrayList<WorkItemInfo>(workItems.values()) );
+    public List<PersistentWorkItem> getStoredWorkItems() {
+        return Collections.unmodifiableList( new ArrayList<PersistentWorkItem>(workItems.values()) );
     }
 
-    public WorkItemInfo findWorkItemInfo(Long id) {
-        WorkItemInfo workItemInfo = workItems.get( id );
-        if(workItemInfo == null)
-            workItemInfo = storage.findWorkItemInfo( id );
-        return workItemInfo;
+    public PersistentWorkItem findWorkItem(Long id) {
+        PersistentWorkItem workItem = workItems.get( id );
+        if(workItem == null)
+            workItem = storage.findWorkItemInfo( id );
+        return workItem;
     }
 
-    public void remove(WorkItemInfo workItemInfo) {
-        if( !(workItems.remove( workItemInfo.getId() ) == null) ){
-            storage.remove( workItemInfo );
+    public void remove(PersistentWorkItem workItem) {
+        if( !(workItems.remove( workItem.getId() ) == null) ){
+            storage.remove( workItem );
         }
     }
 
-    public WorkItemInfo merge(WorkItemInfo workItemInfo) {
-        storage.saveOrUpdate(workItemInfo);
-        return workItemInfo;
+    public PersistentWorkItem merge(PersistentWorkItem workItem) {
+        storage.saveOrUpdate(workItem);
+        return workItem;
     }
 
-    public void lock(SessionInfo sessionInfo) {
+    public void lock(PersistentSession session) {
         throw new UnsupportedOperationException("Map based persistence does not support locking.");
         
     }
 
-    public void lock(WorkItemInfo workItemInfo) {
+    public void lock(PersistentWorkItem workItem) {
         throw new UnsupportedOperationException("Map based persistence does not support locking.");
     }
 

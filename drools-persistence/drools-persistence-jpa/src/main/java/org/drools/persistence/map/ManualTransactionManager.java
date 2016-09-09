@@ -19,10 +19,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.drools.persistence.PersistentSession;
+import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.TransactionManager;
 import org.drools.persistence.TransactionSynchronization;
-import org.drools.persistence.info.SessionInfo;
-import org.drools.persistence.info.WorkItemInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,14 +62,14 @@ public class ManualTransactionManager
         // Do not check if the caller is the transactionOwner 
         //  because there's no need to "wait" for a commit
         try{
-            for(SessionInfo sessionInfo : session.getStoredKnowledgeSessions()){
-                sessionInfo.transform();
-                storage.saveOrUpdate(sessionInfo);
+            for(PersistentSession session : session.getStoredKnowledgeSessions()){
+                session.transform();
+                storage.saveOrUpdate(session);
             }
             
-            for(WorkItemInfo workItemInfo : session.getStoredWorkItems()){
-                workItemInfo.transform();
-                storage.saveOrUpdate( workItemInfo );
+            for(PersistentWorkItem workItem : session.getStoredWorkItems()){
+                workItem.transform();
+                storage.saveOrUpdate( workItem );
             }
             try{
                 transactionSynchronization.afterCompletion(TransactionManager.STATUS_COMMITTED);

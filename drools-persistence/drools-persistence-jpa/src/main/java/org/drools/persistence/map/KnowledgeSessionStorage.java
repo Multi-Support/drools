@@ -15,26 +15,26 @@
 
 package org.drools.persistence.map;
 
-import org.drools.persistence.info.SessionInfo;
-import org.drools.persistence.info.WorkItemInfo;
+import org.drools.persistence.PersistentSession;
+import org.drools.persistence.PersistentWorkItem;
 
 public interface KnowledgeSessionStorage {
 
-    SessionInfo findSessionInfo(Long sessionId);
+    PersistentSession findSessionInfo(Long sessionId);
 
-    void saveOrUpdate(SessionInfo storedObject);
+    void saveOrUpdate(PersistentSession storedObject);
 
-    void lock(SessionInfo sessionInfo);
+    void lock(PersistentSession session);
 
-    void saveOrUpdate(WorkItemInfo workItemInfo);
+    void saveOrUpdate(PersistentWorkItem workItem);
     
     Long getNextWorkItemId();
 
-    WorkItemInfo findWorkItemInfo(Long id);
+    PersistentWorkItem findWorkItemInfo(Long id);
 
-    void remove(WorkItemInfo workItemInfo);
+    void remove(PersistentWorkItem workItem);
 
-    void lock(WorkItemInfo workItemInfo);
+    void lock(PersistentWorkItem workItem);
     
     Long getNextStatefulKnowledgeSessionId();
 

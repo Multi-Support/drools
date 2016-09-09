@@ -17,14 +17,14 @@ package org.drools.persistence.map;
 
 import java.util.List;
 
-import org.drools.persistence.info.SessionInfo;
-import org.drools.persistence.info.WorkItemInfo;
+import org.drools.persistence.PersistentSession;
+import org.drools.persistence.PersistentWorkItem;
 
 public interface NonTransactionalPersistentSession {
 
     void clear();
 
-    List<SessionInfo> getStoredKnowledgeSessions();
+    List<PersistentSession> getStoredKnowledgeSessions();
     
-    List<WorkItemInfo> getStoredWorkItems();
+    List<PersistentWorkItem> getStoredWorkItems();
 }

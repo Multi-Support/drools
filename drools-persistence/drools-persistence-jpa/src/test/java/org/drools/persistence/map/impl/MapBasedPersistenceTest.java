@@ -18,8 +18,8 @@ package org.drools.persistence.map.impl;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.drools.persistence.info.SessionInfo;
-import org.drools.persistence.info.WorkItemInfo;
+import org.drools.persistence.PersistentSession;
+import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.map.EnvironmentBuilder;
 import org.drools.persistence.map.KnowledgeSessionStorage;
 import org.drools.persistence.map.KnowledgeSessionStorageEnvironmentBuilder;
@@ -79,45 +79,45 @@ public class MapBasedPersistenceTest extends MapPersistenceTest{
         implements
         KnowledgeSessionStorage {
 
-        public Map<Long, SessionInfo>  ksessions = new HashMap<Long, SessionInfo>();
-        public Map<Long, WorkItemInfo> workItems = new HashMap<Long, WorkItemInfo>();
+        public Map<Long, PersistentSession>  ksessions = new HashMap<Long, PersistentSession>();
+        public Map<Long, PersistentWorkItem> workItems = new HashMap<Long, PersistentWorkItem>();
 
-        public SessionInfo findSessionInfo(Long id) {
+        public PersistentSession findSessionInfo(Long id) {
             return ksessions.get( id );
         }
 
-        public void saveOrUpdate(SessionInfo storedObject) {
+        public void saveOrUpdate(PersistentSession storedObject) {
             ksessions.put( storedObject.getId(),
                            storedObject );
         }
 
-        public void saveOrUpdate(WorkItemInfo workItemInfo) {
-            workItems.put( workItemInfo.getId(),
-                           workItemInfo );
+        public void saveOrUpdate(PersistentWorkItem workItem) {
+            workItems.put( workItem.getId(),
+                           workItem );
         }
 
         public Long getNextWorkItemId() {
             return new Long( workItems.size() + 1 );
         }
 
-        public WorkItemInfo findWorkItemInfo(Long id) {
+        public PersistentWorkItem findWorkItemInfo(Long id) {
             return workItems.get( id );
         }
 
-        public void remove(WorkItemInfo workItemInfo) {
-            workItems.remove( workItemInfo.getId() );
+        public void remove(PersistentWorkItem workItem) {
+            workItems.remove( workItem.getId() );
         }
 
         public Long getNextStatefulKnowledgeSessionId() {
             return new Long(ksessions.size() + 1 );
         }
 
-        public void lock(SessionInfo sessionInfo) {
+        public void lock(PersistentSession session) {
             throw new UnsupportedOperationException("Map based persistence does not support locking.");
         }
 
         @Override
-        public void lock(WorkItemInfo workItemInfo) {
+        public void lock(PersistentWorkItem workItem) {
             throw new UnsupportedOperationException("Map based persistence does not support locking.");
         }
     }

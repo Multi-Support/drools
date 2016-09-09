@@ -15,9 +15,6 @@
 
 package org.drools.persistence;
 
-import javax.persistence.EntityManager;
-import javax.transaction.Synchronization;
-
 import org.drools.core.command.CommandService;
 import org.kie.api.command.Command;
 import org.kie.api.runtime.KieSession;

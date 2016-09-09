@@ -105,7 +105,7 @@ public class SingleSessionCommandService
             registerRollbackSync();
 
             persistenceContext.joinTransaction();
-            this.sessionInfo = persistenceContext.persist( this.sessionInfo );
+            this.sessionInfo = (SessionInfo) persistenceContext.persist( this.sessionInfo );
             registerUpdateSync();
             txm.commit( transactionOwner );
         } catch ( RuntimeException re ) {
@@ -216,7 +216,7 @@ public class SingleSessionCommandService
         this.doRollback = false;
         try {
             // if locking is active, this will also lock the (found) SessionInfo instance
-            this.sessionInfo = persistenceContext.findSessionInfo( sessionId );
+            this.sessionInfo = (SessionInfo) persistenceContext.findSession( sessionId );
         } catch ( Exception e ) {
             throw new SessionNotFoundException( "Could not find session data for id " + sessionId,
                                         e );

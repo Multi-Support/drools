@@ -19,6 +19,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Date;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -36,6 +37,7 @@ import org.drools.core.marshalling.impl.MarshallerWriteContext;
 import org.drools.core.marshalling.impl.ProtobufInputMarshaller;
 import org.drools.core.marshalling.impl.ProtobufOutputMarshaller;
 import org.drools.core.process.instance.WorkItem;
+import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.Transformable;
 import org.kie.api.runtime.Environment;
 import org.slf4j.Logger;
@@ -43,7 +45,7 @@ import org.slf4j.LoggerFactory;
 
 @Entity
 @SequenceGenerator(name="workItemInfoIdSeq", sequenceName="WORKITEMINFO_ID_SEQ")
-public class WorkItemInfo implements Transformable {
+public class WorkItemInfo implements Transformable, PersistentWorkItem {
 
     private static final Logger logger = LoggerFactory.getLogger(WorkItemInfo.class);
 

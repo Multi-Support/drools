@@ -16,6 +16,7 @@
 package org.drools.persistence.info;
 
 import java.util.Date;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -26,12 +27,13 @@ import javax.persistence.SequenceGenerator;
 import javax.persistence.Transient;
 import javax.persistence.Version;
 
+import org.drools.persistence.PersistentSession;
 import org.drools.persistence.SessionMarshallingHelper;
 import org.drools.persistence.Transformable;
 
 @Entity
 @SequenceGenerator(name="sessionInfoIdSeq", sequenceName="SESSIONINFO_ID_SEQ")
-public class SessionInfo implements Transformable {
+public class SessionInfo implements Transformable, PersistentSession {
     
     private @Id
     @GeneratedValue(strategy = GenerationType.AUTO, generator="sessionInfoIdSeq")

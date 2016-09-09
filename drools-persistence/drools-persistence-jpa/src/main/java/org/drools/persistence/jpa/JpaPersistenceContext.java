@@ -21,10 +21,13 @@ import javax.persistence.EntityManager;
 import javax.persistence.LockModeType;
 
 import org.drools.persistence.PersistenceContext;
+import org.drools.persistence.PersistentSession;
+import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.TransactionManager;
 import org.drools.persistence.TransactionManagerHelper;
 import org.drools.persistence.info.SessionInfo;
 import org.drools.persistence.info.WorkItemInfo;
+import org.kie.api.runtime.process.WorkItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +55,7 @@ public class JpaPersistenceContext implements PersistenceContext {
         this.txm = txm;
     }
 
-    public SessionInfo persist(SessionInfo entity) {
+    public PersistentSession persist(PersistentSession entity) {
         this.em.persist( entity );
         TransactionManagerHelper.addToUpdatableSet(txm, entity);
         if( this.pessimisticLocking ) {
@@ -62,13 +65,12 @@ public class JpaPersistenceContext implements PersistenceContext {
         return entity;
     }
 
-    public SessionInfo findSessionInfo(Long id) {
+    public PersistentSession findSession(Long id) {
 
         SessionInfo sessionInfo = null;
         if( this.pessimisticLocking ) {
             sessionInfo = this.em.find( SessionInfo.class, id, LockModeType.PESSIMISTIC_FORCE_INCREMENT );
             TransactionManagerHelper.addToUpdatableSet(txm, sessionInfo);
-
             return sessionInfo;
         }
         sessionInfo = this.em.find( SessionInfo.class, id );
@@ -78,19 +80,19 @@ public class JpaPersistenceContext implements PersistenceContext {
         return sessionInfo;
     }
 
-    public void remove(SessionInfo sessionInfo) {
-        if (!em.contains(sessionInfo)) {
-            SessionInfo s = em.getReference(SessionInfo.class, sessionInfo.getId());
+    public void remove(PersistentSession session) {
+        if (!em.contains(session)) {
+            SessionInfo s = em.getReference(SessionInfo.class, session.getId());
             em.remove( s );
         } else {
-            em.remove(sessionInfo);
+            em.remove(session);
         }
-        TransactionManagerHelper.removeFromUpdatableSet(txm, sessionInfo);
+        TransactionManagerHelper.removeFromUpdatableSet(txm, session);
         em.flush();
     }
     
-    public void lock(SessionInfo sessionInfo) {
-         this.em.lock( sessionInfo, LockModeType.PESSIMISTIC_FORCE_INCREMENT );
+    public void lock(PersistentSession session) {
+    	this.em.lock( session, LockModeType.PESSIMISTIC_FORCE_INCREMENT );
     }
     
     public boolean isOpen() {
@@ -107,18 +109,18 @@ public class JpaPersistenceContext implements PersistenceContext {
         this.em.close();
     }
 
-    public WorkItemInfo persist(WorkItemInfo workItemInfo) {
-        em.persist( workItemInfo );
-        TransactionManagerHelper.addToUpdatableSet(txm, workItemInfo);
+    public PersistentWorkItem persist(PersistentWorkItem workItem) {
+        em.persist( workItem );
+        TransactionManagerHelper.addToUpdatableSet(txm, workItem);
         if( this.pessimisticLocking ) {
             this.em.flush();
-            return em.find(WorkItemInfo.class, workItemInfo.getId(), LockModeType.PESSIMISTIC_FORCE_INCREMENT);
+            return em.find(WorkItemInfo.class, workItem.getId(), LockModeType.PESSIMISTIC_FORCE_INCREMENT);
         }
 
-        return workItemInfo;
+        return workItem;
     }
 
-    public WorkItemInfo findWorkItemInfo(Long id) {
+    public PersistentWorkItem findWorkItem(Long id) {
         WorkItemInfo workItemInfo = null;
         if( this.pessimisticLocking ) {
             workItemInfo = this.em.find( WorkItemInfo.class, id, LockModeType.PESSIMISTIC_FORCE_INCREMENT );
@@ -133,23 +135,23 @@ public class JpaPersistenceContext implements PersistenceContext {
         return workItemInfo;
     }
 
-    public void remove(WorkItemInfo workItemInfo) {
-        em.remove( workItemInfo );
-        TransactionManagerHelper.removeFromUpdatableSet(txm, workItemInfo);
+    public void remove(PersistentWorkItem workItem) {
+        em.remove( workItem );
+        TransactionManagerHelper.removeFromUpdatableSet(txm, workItem);
     }
 
-    public WorkItemInfo merge(WorkItemInfo workItemInfo) {
+    public PersistentWorkItem merge(PersistentWorkItem workItem) {
         if( this.pessimisticLocking ) { 
-            if( em.contains(workItemInfo) ) { 
-                em.lock(workItemInfo, LockModeType.PESSIMISTIC_FORCE_INCREMENT);
+            if( em.contains(workItem) ) { 
+                em.lock(workItem, LockModeType.PESSIMISTIC_FORCE_INCREMENT);
             } else { 
                 // Yes, this is a hack, but for detached entities, it's the only way to lock before merging
-                WorkItemInfo dbWorkItemInfo = em.find(WorkItemInfo.class, workItemInfo.getId(), LockModeType.PESSIMISTIC_FORCE_INCREMENT);
+                WorkItemInfo dbWorkItemInfo = em.find(WorkItemInfo.class, workItem.getId(), LockModeType.PESSIMISTIC_FORCE_INCREMENT);
                 for( Field field : WorkItemInfo.class.getDeclaredFields() ) { 
                     boolean access = field.isAccessible();
                     field.setAccessible(true);
                     try {
-                        field.set(dbWorkItemInfo, field.get(workItemInfo));
+                        field.set(dbWorkItemInfo, field.get(workItem));
                     } catch (Exception e) {
                         logger.error("Unable to set field " + field.getName() + " of unmerged WorkItemInfo instance!", e);
                     } 
@@ -157,17 +159,15 @@ public class JpaPersistenceContext implements PersistenceContext {
                 }
             }
         }
-        TransactionManagerHelper.addToUpdatableSet(txm, workItemInfo);
-        return em.merge( workItemInfo );
+        TransactionManagerHelper.addToUpdatableSet(txm, workItem);
+        return em.merge( workItem );
     }
     
-    public void lock(WorkItemInfo workItemInfo) {
-         this.em.lock( workItemInfo, LockModeType.PESSIMISTIC_FORCE_INCREMENT );
+    public void lock(PersistentWorkItem workItem) {
+    	this.em.lock( workItem, LockModeType.PESSIMISTIC_FORCE_INCREMENT );
     }
     
     protected EntityManager getEntityManager() {
         return this.em;
     }
-
-
  }  

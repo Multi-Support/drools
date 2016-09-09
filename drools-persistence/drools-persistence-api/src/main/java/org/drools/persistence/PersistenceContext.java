@@ -15,8 +15,6 @@
 
 package org.drools.persistence;
 
-import org.drools.persistence.info.SessionInfo;
-import org.drools.persistence.info.WorkItemInfo;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.process.WorkItem;
 
@@ -28,11 +26,11 @@ public interface PersistenceContext {
      * @param sessionInfo The {@link SessionInfo} instance representing the state of the {@link KieSession}
      * @return sessionInfo a reference to the persisted {@link SessionInfo} instance.
      */
-    SessionInfo persist(SessionInfo sessionInfo);
+    PersistentSession persist(PersistentSession session);
 
-    public SessionInfo findSessionInfo(Long id);
+    public PersistentSession findSession(Long id);
 
-    void remove(SessionInfo sessionInfo);
+    void remove(PersistentSession sessionInfo);
     
     boolean isOpen();
 
@@ -40,18 +38,18 @@ public interface PersistenceContext {
 
     void close();
     
-    WorkItemInfo persist(WorkItemInfo workItemInfo);
+    PersistentWorkItem persist(PersistentWorkItem workItem);
 
-    WorkItemInfo findWorkItemInfo(Long id);
+    PersistentWorkItem findWorkItem(Long id);
 
-    void remove(WorkItemInfo workItemInfo);
+    void remove(PersistentWorkItem workItem);
 
     /**
      * This method pessimistically locks the {@link WorkItemInfo} instance
      * @param sessionInfo The persistent representation of a {@link WorkItem}
      */
-    void lock(WorkItemInfo workItemInfo);
+    void lock(PersistentWorkItem workItem);
     
-    WorkItemInfo merge(WorkItemInfo workItemInfo);
+    PersistentWorkItem merge(PersistentWorkItem workItem);
 
 }
