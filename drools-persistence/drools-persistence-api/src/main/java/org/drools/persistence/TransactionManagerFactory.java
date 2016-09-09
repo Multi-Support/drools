@@ -15,7 +15,6 @@
  */
 package org.drools.persistence;
 
-import org.drools.persistence.jta.JtaTransactionManagerFactory;
 import org.kie.api.runtime.Environment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +29,8 @@ public abstract class TransactionManagerFactory {
     private static final Logger logger = LoggerFactory.getLogger(TransactionManagerFactory.class);
     private static TransactionManagerFactory INSTANCE;
 
-    static {
-        String factoryClassName = System.getProperty("org.kie.txm.factory.class", JtaTransactionManagerFactory.class.getName());
+    private static void initTransactionManagerFactory() {
+        String factoryClassName = System.getProperty("org.kie.txm.factory.class", "org.drools.persistence.jta.JtaTransactionManagerFactory");
         try {            
             TransactionManagerFactory factory = Class.forName(factoryClassName).asSubclass(TransactionManagerFactory.class).newInstance();
             INSTANCE = factory;
@@ -47,6 +46,7 @@ public abstract class TransactionManagerFactory {
      * @return
      */
     public static final TransactionManagerFactory get() {
+    	initTransactionManagerFactory();
         return INSTANCE;
     }
 

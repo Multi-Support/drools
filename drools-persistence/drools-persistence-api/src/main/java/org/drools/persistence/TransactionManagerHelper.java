@@ -34,6 +34,7 @@ public class TransactionManagerHelper {
         container.addTransactionSynchronization(synchronization);
     }
 
+    @SuppressWarnings("unchecked")
     public static void addToUpdatableSet(TransactionManager txm, Transformable transformable) {
         if (transformable == null) {
             return;
@@ -46,6 +47,7 @@ public class TransactionManagerHelper {
         toBeUpdated.add(transformable);
     }
 
+    @SuppressWarnings("unchecked")
     public static void removeFromUpdatableSet(TransactionManager txm, Transformable transformable) {
         Set<Transformable> toBeUpdated = (Set<Transformable>) txm.getResource(APP_UPDETEABLE_RESOURCE);
         if (toBeUpdated == null) {
@@ -54,6 +56,7 @@ public class TransactionManagerHelper {
         toBeUpdated.remove(transformable);
     }
 
+    @SuppressWarnings("unchecked")
     public static Set<Transformable> getUpdateableSet(TransactionManager txm) {
         Set<Transformable> toBeUpdated = (Set<Transformable>) txm.getResource(APP_UPDETEABLE_RESOURCE);
         if (toBeUpdated == null) {
