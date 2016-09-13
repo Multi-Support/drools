@@ -1,4 +1,4 @@
-package ord.drools.persistence.mapdb;
+package org.drools.persistence.mapdb;
 
 import org.drools.persistence.PersistenceContext;
 import org.drools.persistence.PersistenceContextManager;
@@ -16,7 +16,7 @@ public class MapDBPersistenceContextManager implements
 
 	public MapDBPersistenceContextManager(Environment env) {
 		this.env = env;
-		this.db = (DB) env.get(MapDBEnvironmentName.DB);
+		this.db = (DB) env.get(MapDBEnvironmentName.DB_OBJECT);
 	}
 	
 	@Override

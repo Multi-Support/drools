@@ -1,4 +1,4 @@
-package ord.drools.persistence.mapdb;
+package org.drools.persistence.mapdb;
 
 import org.drools.persistence.PersistenceContext;
 import org.drools.persistence.PersistentSession;
@@ -18,7 +18,9 @@ public class MapDBPersistenceContext implements PersistenceContext {
 	
 	@Override
 	public PersistentSession persist(PersistentSession session) {
-		db.getStore().put(session, sessionSerializer);
+		long id = db.getStore().preallocate();
+		session.setId(id);
+		db.getStore().update(id, session, sessionSerializer);
 		return session;
 	}
 
@@ -43,13 +45,14 @@ public class MapDBPersistenceContext implements PersistenceContext {
 
 	@Override
 	public void close() {
-		db.getStore().close();
+		//db.getStore().close();
 	}
 
 	@Override
 	public PersistentWorkItem persist(PersistentWorkItem workItem) {
-		db.getStore().put(workItem, workItemSerializer);
-		return null;
+		long id = db.getStore().preallocate();
+		workItem.setId(id);
+		return workItem;
 	}
 
 	@Override
