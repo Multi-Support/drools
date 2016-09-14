@@ -4,6 +4,7 @@ import org.drools.persistence.PersistenceContext;
 import org.drools.persistence.PersistentSession;
 import org.drools.persistence.PersistentWorkItem;
 import org.mapdb.DB;
+import org.mapdb.DBException;
 import org.mapdb.Serializer;
 
 public class MapDBPersistenceContext implements PersistenceContext {
@@ -18,8 +19,13 @@ public class MapDBPersistenceContext implements PersistenceContext {
 	
 	@Override
 	public PersistentSession persist(PersistentSession session) {
-		long id = db.getStore().preallocate();
-		session.setId(id);
+		long id;
+		if (session.getId() == null || session.getId() == -1) {
+			id = db.getStore().preallocate();
+			session.setId(id);
+		} else {
+			id = session.getId();
+		}
 		db.getStore().update(id, session, sessionSerializer);
 		return session;
 	}
@@ -57,7 +63,11 @@ public class MapDBPersistenceContext implements PersistenceContext {
 
 	@Override
 	public PersistentWorkItem findWorkItem(Long id) {
-		return db.getStore().get(id, workItemSerializer);
+		try {
+			return db.getStore().get(id, workItemSerializer);
+		} catch (DBException e) {
+			return null;
+		}
 	}
 
 	@Override

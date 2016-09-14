@@ -18,6 +18,7 @@ package org.drools.persistence.mapdb;
 import java.lang.reflect.Constructor;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Set;
 
 import org.drools.core.SessionConfiguration;
 import org.drools.core.command.CommandService;
@@ -34,6 +35,7 @@ import org.drools.core.common.InternalKnowledgeRuntime;
 import org.drools.core.common.InternalWorkingMemory;
 import org.drools.core.marshalling.impl.KieSessionInitializer;
 import org.drools.core.marshalling.impl.MarshallingConfigurationImpl;
+import org.drools.core.process.instance.WorkItem;
 import org.drools.core.runtime.process.InternalProcessRuntime;
 import org.drools.core.time.impl.CommandServiceTimerJobFactoryManager;
 import org.drools.core.time.impl.TimerJobFactoryManager;
@@ -48,6 +50,7 @@ import org.drools.persistence.TransactionManager;
 import org.drools.persistence.TransactionManagerFactory;
 import org.drools.persistence.TransactionManagerHelper;
 import org.drools.persistence.processinstance.InternalWorkItemManager;
+import org.drools.persistence.processinstance.mapdb.MapDBWorkItem;
 import org.kie.api.KieBase;
 import org.kie.api.command.BatchExecutionCommand;
 import org.kie.api.command.Command;
@@ -482,9 +485,19 @@ public class MapDBSessionCommandService
                 }
             }
 
+            this.service.jpm.getCommandScopedPersistenceContext().persist(this.service.sessionInfo);
+            KieSession ksession = this.service.ksession;
+            if ( ksession != null ) {
+            	InternalWorkItemManager wiManager = (InternalWorkItemManager) ksession.getWorkItemManager();
+                if ( wiManager != null ) {
+                	Set<WorkItem> workItems = wiManager.getWorkItems();
+                	for (WorkItem workItem : workItems) {
+                		this.service.jpm.getCommandScopedPersistenceContext().merge(new MapDBWorkItem(workItem, this.service.env));
+                	}
+                }
+            }
             this.service.jpm.endCommandScopedEntityManager();
 
-            KieSession ksession = this.service.ksession;
             // clean up cached process and work item instances
             if ( ksession != null ) {
                 InternalProcessRuntime internalProcessRuntime = ((InternalWorkingMemory) ksession).internalGetProcessRuntime();
@@ -495,7 +508,8 @@ public class MapDBSessionCommandService
 
                     internalProcessRuntime.clearProcessInstances();
                 }
-                ((InternalWorkItemManager) ksession.getWorkItemManager()).clearWorkItems();
+                InternalWorkItemManager wiManager = (InternalWorkItemManager) ksession.getWorkItemManager();
+                wiManager.clearWorkItems();
             }
 
         }

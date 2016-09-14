@@ -17,9 +17,9 @@ package org.drools.persistence.kie.persistence.session
 
 import java.util.List
 
-import org.drools.persistence.kie.persistence.session.JpaPersistentStatefulSessionTest.Door
-import org.drools.persistence.kie.persistence.session.JpaPersistentStatefulSessionTest.Edible
-import org.drools.persistence.kie.persistence.session.JpaPersistentStatefulSessionTest.ListHolder
+import org.drools.persistence.kie.persistence.session.MapDBPersistentStatefulSessionTest.Door
+import org.drools.persistence.kie.persistence.session.MapDBPersistentStatefulSessionTest.Edible
+import org.drools.persistence.kie.persistence.session.MapDBPersistentStatefulSessionTest.ListHolder
 
 global List list
 

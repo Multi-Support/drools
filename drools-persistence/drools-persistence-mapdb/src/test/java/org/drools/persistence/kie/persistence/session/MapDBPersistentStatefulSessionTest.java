@@ -76,7 +76,7 @@ public class MapDBPersistentStatefulSessionTest {
     }
 
 
-    @Test @Ignore("NEXT: for now")
+    @Test
     public void testFactHandleSerialization() {
         String str = "";
         str += "package org.kie.test\n";
@@ -172,7 +172,7 @@ public class MapDBPersistentStatefulSessionTest {
 
     }
 
-    @Test @Ignore("NEXT: for now")
+    @Test @Ignore("NEXT: Currently transaction mechanisms not tied to JTA in mapdb implementation used for testing")
     public void testUserTransactions() throws Exception {
         String str = "";
         str += "package org.kie.test\n";
@@ -202,8 +202,7 @@ public class MapDBPersistentStatefulSessionTest {
         // insert and commit
         ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
         ut.begin();
-        ksession.setGlobal( "list",
-                            list );
+        ksession.setGlobal( "list", list );
         ksession.insert( 1 );
         ksession.insert( 2 );
         ksession.fireAllRules();
@@ -220,8 +219,7 @@ public class MapDBPersistentStatefulSessionTest {
         ut.begin();
         ksession.fireAllRules();
         ut.commit();
-        assertEquals( 2,
-                      list.size() );
+        assertEquals( 2, list.size() );
 
         // insert and commit
         ut = (UserTransaction) new InitialContext().lookup( "java:comp/UserTransaction" );
@@ -257,7 +255,7 @@ public class MapDBPersistentStatefulSessionTest {
                       list.size() );
     }
 
-    @Test @Ignore("NEXT: for now")
+    @Test
     public void testInterceptor() {
         String str = "";
         str += "package org.kie.test\n";
@@ -330,7 +328,7 @@ public class MapDBPersistentStatefulSessionTest {
                       list.size() );
     }
     
-    @Test @Ignore("NEXT: for now")
+    @Test
     public void testSharedReferences() {
         KieServices ks = KieServices.Factory.get();
         KieBase kbase = ks.newKieContainer(ks.getRepository().getDefaultReleaseId()).getKieBase();
@@ -389,7 +387,7 @@ public class MapDBPersistentStatefulSessionTest {
         assertEquals("com.example.CustomJPAProcessInstanceManagerFactory", sessionConfig.getProcessInstanceManagerFactory());
     }
     
-    @Test @Ignore("NEXT: for now")
+    @Test
     public void testMoreComplexRulesSerialization() throws Exception {
         KieServices ks = KieServices.Factory.get();
 

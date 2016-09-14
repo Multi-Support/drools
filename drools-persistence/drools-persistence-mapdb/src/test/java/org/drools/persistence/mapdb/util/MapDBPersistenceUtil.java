@@ -29,7 +29,7 @@ public class MapDBPersistenceUtil {
 	public static Map<String, Object> setupMapDB() {
 		new KnowledgeStoreServiceImpl(); //TODO this reference is to make sure it registers the store service
 		HashMap<String, Object> context = new HashMap<>();
-		context.put(DB_OBJECT, DBMaker.memoryDB().make());
+		context.put(DB_OBJECT, DBMaker.memoryDB().transactionEnable().make());
 		return context;
 	}
 
