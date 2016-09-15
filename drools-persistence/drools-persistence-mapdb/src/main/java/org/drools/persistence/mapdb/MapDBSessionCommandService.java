@@ -485,16 +485,18 @@ public class MapDBSessionCommandService
                 }
             }
 
-            this.service.jpm.getCommandScopedPersistenceContext().persist(this.service.sessionInfo);
             KieSession ksession = this.service.ksession;
-            if ( ksession != null ) {
-            	InternalWorkItemManager wiManager = (InternalWorkItemManager) ksession.getWorkItemManager();
-                if ( wiManager != null ) {
-                	Set<WorkItem> workItems = wiManager.getWorkItems();
-                	for (WorkItem workItem : workItems) {
-                		this.service.jpm.getCommandScopedPersistenceContext().merge(new MapDBWorkItem(workItem, this.service.env));
-                	}
-                }
+            if (!this.service.doRollback) {
+            	this.service.jpm.getCommandScopedPersistenceContext().persist(this.service.sessionInfo);
+	            if ( ksession != null ) {
+	            	InternalWorkItemManager wiManager = (InternalWorkItemManager) ksession.getWorkItemManager();
+	                if ( wiManager != null ) {
+	                	Set<WorkItem> workItems = wiManager.getWorkItems();
+	                	for (WorkItem workItem : workItems) {
+	                		this.service.jpm.getCommandScopedPersistenceContext().merge(new MapDBWorkItem(workItem, this.service.env));
+	                	}
+	                }
+	            }
             }
             this.service.jpm.endCommandScopedEntityManager();
 

@@ -6,9 +6,9 @@ import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.processinstance.mapdb.MapDBWorkItem;
 import org.mapdb.DataInput2;
 import org.mapdb.DataOutput2;
-import org.mapdb.Serializer;
+import org.mapdb.serializer.GroupSerializerObjectArray;
 
-public class PersistentWorkItemSerializer implements Serializer<PersistentWorkItem> {
+public class PersistentWorkItemSerializer  extends GroupSerializerObjectArray<PersistentWorkItem>  {
 
 	public PersistentWorkItemSerializer() {
 	}
@@ -43,5 +43,4 @@ public class PersistentWorkItemSerializer implements Serializer<PersistentWorkIt
 		output.write(dbWorkItem.getData());
 		output.writeInt(dbWorkItem.getState());
 	}
-
 }

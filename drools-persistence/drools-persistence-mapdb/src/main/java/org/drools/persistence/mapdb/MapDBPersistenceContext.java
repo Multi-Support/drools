@@ -3,15 +3,17 @@ package org.drools.persistence.mapdb;
 import org.drools.persistence.PersistenceContext;
 import org.drools.persistence.PersistentSession;
 import org.drools.persistence.PersistentWorkItem;
+import org.mapdb.BTreeMap;
 import org.mapdb.DB;
-import org.mapdb.DBException;
-import org.mapdb.Serializer;
+import org.mapdb.serializer.GroupSerializer;
+import org.mapdb.serializer.SerializerLong;
 
 public class MapDBPersistenceContext implements PersistenceContext {
 
 	private DB db;
-	private Serializer<PersistentSession> sessionSerializer = new PersistentSessionSerializer();
-	private Serializer<PersistentWorkItem> workItemSerializer = new PersistentWorkItemSerializer();
+	private GroupSerializer<PersistentSession> sessionSerializer = new PersistentSessionSerializer();
+	private GroupSerializer<Long> idSerializer = new SerializerLong();
+	private GroupSerializer<PersistentWorkItem> workItemSerializer = new PersistentWorkItemSerializer();
 
 	public MapDBPersistenceContext(DB db) {
 		this.db = db;
@@ -21,23 +23,26 @@ public class MapDBPersistenceContext implements PersistenceContext {
 	public PersistentSession persist(PersistentSession session) {
 		long id;
 		if (session.getId() == null || session.getId() == -1) {
-			id = db.getStore().preallocate();
+			Long lk = getSessionMap().lastKey2();
+			id = (lk == null ? 0 : lk) + 1L;
 			session.setId(id);
 		} else {
 			id = session.getId();
 		}
-		db.getStore().update(id, session, sessionSerializer);
+		getSessionMap().put(id, session);
+		db.commit();
 		return session;
 	}
 
 	@Override
 	public PersistentSession findSession(Long id) {
-		return db.getStore().get(id, sessionSerializer);
+		return getSessionMap().getOrDefault(id, null);
 	}
 
 	@Override
 	public void remove(PersistentSession session) {
-		db.getStore().delete(session.getId(), sessionSerializer);
+		getSessionMap().remove(session.getId());
+		db.commit();
 	}
 
 	@Override
@@ -56,23 +61,42 @@ public class MapDBPersistenceContext implements PersistenceContext {
 
 	@Override
 	public PersistentWorkItem persist(PersistentWorkItem workItem) {
-		long id = db.getStore().preallocate();
-		workItem.setId(id);
+		long id;
+		if (workItem.getId() == null || workItem.getId() == -1) {
+			Long lk = getWorkItemMap().lastKey2();
+			id = (lk == null ? 0 : lk) + 1L;
+			workItem.setId(id);
+		} else {
+			id = workItem.getId();
+		}
+		getWorkItemMap().put(id, workItem);
+		db.commit();
 		return workItem;
 	}
 
 	@Override
 	public PersistentWorkItem findWorkItem(Long id) {
-		try {
-			return db.getStore().get(id, workItemSerializer);
-		} catch (DBException e) {
-			return null;
-		}
+		return getWorkItemMap().getOrDefault(id, null);
+	}
+
+	protected BTreeMap<Long, PersistentWorkItem> getWorkItemMap() {
+//		db.atomicVar("workItem", workItemSerializer).createOrOpen();
+//		db.treeSet("workItemByState", workItemSerializer).createOrOpen();
+//		db.indexTreeList("workItemByState", workItemSerializer).createOrOpen();
+//		db.hashMap("workItemByState", new SerializerInteger(), workItemSerializer).createOrOpen();
+//		Triple<A, B, C> tuple3;
+//		db.treeMap("workItem", idSerializer, workItemSerializer).create().prefixSubMap(tuple3);
+		return db.treeMap("workItem", idSerializer, workItemSerializer).createOrOpen();
+	}
+	
+	protected BTreeMap<Long, PersistentSession> getSessionMap() {
+		return db.treeMap("session", idSerializer, sessionSerializer).createOrOpen();
 	}
 
 	@Override
 	public void remove(PersistentWorkItem workItem) {
-		db.getStore().delete(workItem.getId(), workItemSerializer);
+		getWorkItemMap().remove(workItem.getId());
+		db.commit();
 	}
 
 	@Override
@@ -81,7 +105,8 @@ public class MapDBPersistenceContext implements PersistenceContext {
 
 	@Override
 	public PersistentWorkItem merge(PersistentWorkItem workItem) {
-		db.getStore().update(workItem.getId(), workItem, workItemSerializer);
+		getWorkItemMap().replace(workItem.getId(), workItem);
+		db.commit();
 		return workItem;
 	}
 

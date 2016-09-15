@@ -5,9 +5,9 @@ import java.io.IOException;
 import org.drools.persistence.PersistentSession;
 import org.mapdb.DataInput2;
 import org.mapdb.DataOutput2;
-import org.mapdb.Serializer;
+import org.mapdb.serializer.GroupSerializerObjectArray;
 
-public class PersistentSessionSerializer implements Serializer<PersistentSession> {
+public class PersistentSessionSerializer extends GroupSerializerObjectArray<PersistentSession> {
 
 	public PersistentSessionSerializer() {
 	}
@@ -41,4 +41,5 @@ public class PersistentSessionSerializer implements Serializer<PersistentSession
 		output.writeInt(size);;
 		output.write(data);
 	}
+
 }
