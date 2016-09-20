@@ -10,7 +10,7 @@ import org.mapdb.serializer.SerializerLong;
 
 public class MapDBPersistenceContext implements PersistenceContext {
 
-	private DB db;
+	protected DB db;
 	private GroupSerializer<PersistentSession> sessionSerializer = new PersistentSessionSerializer();
 	private GroupSerializer<Long> idSerializer = new SerializerLong();
 	private GroupSerializer<PersistentWorkItem> workItemSerializer = new PersistentWorkItemSerializer();
@@ -109,5 +109,4 @@ public class MapDBPersistenceContext implements PersistenceContext {
 		db.commit();
 		return workItem;
 	}
-
 }

@@ -60,4 +60,7 @@ public class MapDBPersistenceContextManager implements
 		}
 	}
 
+	protected DB getDB() {
+		return this.db;
+	}
 }

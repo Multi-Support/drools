@@ -22,11 +22,13 @@ public class PersistentWorkItemSerializer  extends GroupSerializerObjectArray<Pe
 	public PersistentWorkItem deserialize(DataInput2 input, int available) throws IOException {
 		MapDBWorkItem workItem = new MapDBWorkItem();
 		long id = input.readLong();
-		int size = input.readInt();
-		byte[] data = new byte[size];
-		input.readFully(data);
+		if (input.readBoolean()) {
+			int size = input.readInt();
+			byte[] data = new byte[size];
+			input.readFully(data);
+			workItem.setData(data);
+		}
 		int state = input.readInt();
-		workItem.setData(data);
 		workItem.setState(state);;
 		if (id > -1) {
 			workItem.setId(id);
@@ -38,9 +40,12 @@ public class PersistentWorkItemSerializer  extends GroupSerializerObjectArray<Pe
 	public void serialize(DataOutput2 output, PersistentWorkItem workItem) throws IOException {
 		MapDBWorkItem dbWorkItem = (MapDBWorkItem) workItem;
 		output.writeLong(workItem.getId() == null ? -1 : workItem.getId());
-		int size = dbWorkItem.getData().length;
-		output.writeInt(size);;
-		output.write(dbWorkItem.getData());
+		output.writeBoolean(dbWorkItem.getData() != null);
+		if (dbWorkItem.getData() != null) {
+			int size = dbWorkItem.getData().length;
+			output.writeInt(size);;
+			output.write(dbWorkItem.getData());
+		}
 		output.writeInt(dbWorkItem.getState());
 	}
 }

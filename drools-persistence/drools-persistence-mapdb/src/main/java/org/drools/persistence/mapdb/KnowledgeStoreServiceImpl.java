@@ -33,6 +33,7 @@ import org.kie.api.runtime.CommandExecutor;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.EnvironmentName;
 import org.kie.api.runtime.KieSessionConfiguration;
+import org.kie.api.runtime.conf.TimerJobFactoryOption;
 import org.kie.internal.KnowledgeBaseFactory;
 import org.kie.internal.runtime.StatefulKnowledgeSession;
 import org.kie.internal.utils.ServiceRegistryImpl;
@@ -59,9 +60,9 @@ public class KnowledgeStoreServiceImpl
 
     protected void setDefaultImplementations() {
         setCommandServiceClass( MapDBSessionCommandService.class );
-        setProcessInstanceManagerFactoryClass( "org.jbpm.persistence.processinstance.mapdb.MapDBProcessInstanceManagerFactory" );
+        setProcessInstanceManagerFactoryClass( "org.jbpm.persistence.mapdb.MapDBProcessInstanceManagerFactory" );
         setWorkItemManagerFactoryClass( MapDBWorkItemManagerFactory.class );
-        setProcessSignalManagerFactoryClass( "org.jbpm.persistence.processinstance.mapdb.MapDBSignalManagerFactory" );
+        setProcessSignalManagerFactoryClass( "org.jbpm.persistence.mapdb.MapDBSignalManagerFactory" );
         setTimerServiceClass(MapDBJDKTimerService.class);
     }
 
@@ -198,7 +199,7 @@ public class KnowledgeStoreServiceImpl
     	}
     	if (env.get(EnvironmentName.PERSISTENCE_CONTEXT_MANAGER) == null) {
     		try {
-    			Class<?> clazz = Class.forName("org.jbpm.persistence.InfinispanProcessPersistenceContextManager");
+    			Class<?> clazz = Class.forName("org.jbpm.persistence.mapdb.MapDBProcessPersistenceContextManager");
     			Constructor<?> c = clazz.getConstructor(Environment.class);
     			env.set(EnvironmentName.PERSISTENCE_CONTEXT_MANAGER, c.newInstance(env));
     		} catch (ClassNotFoundException e) {
@@ -247,7 +248,9 @@ public class KnowledgeStoreServiceImpl
     }
 
     private KieSessionConfiguration mergeConfig(KieSessionConfiguration configuration) {
-        return ((SessionConfiguration) configuration).addDefaultProperties(configProps);
+        KieSessionConfiguration merged = ((SessionConfiguration) configuration).addDefaultProperties(configProps);
+        merged.setOption(TimerJobFactoryOption.get("mapdb")); //TODO refactor drools-core so this can be overriden
+        return merged;
     }
 
     public long getStatefulKnowledgeSessionId(StatefulKnowledgeSession ksession) {

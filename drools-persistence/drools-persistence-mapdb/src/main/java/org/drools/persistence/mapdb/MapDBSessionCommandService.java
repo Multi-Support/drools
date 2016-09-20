@@ -86,9 +86,9 @@ public class MapDBSessionCommandService
 
 
     public void checkEnvironment(Environment env) {
-        if ( env.get( EnvironmentName.ENTITY_MANAGER_FACTORY ) == null &&
+        if ( env.get( MapDBEnvironmentName.DB_OBJECT ) == null &&
              env.get( EnvironmentName.PERSISTENCE_CONTEXT_MANAGER ) == null ) {
-            throw new IllegalArgumentException( "Environment must have an EntityManagerFactory " +
+            throw new IllegalArgumentException( "Environment must have a DB " +
                                                 "or a PersistenceContextManager instance" );
         }
     }
@@ -334,9 +334,9 @@ public class MapDBSessionCommandService
                 this.txm = TransactionManagerFactory.get().newTransactionManager(env);
                 env.set( EnvironmentName.TRANSACTION_MANAGER, this.txm );
                 try {
-                    Class< ? > jpaPersistenceCtxMngrClass = Class.forName( "org.jbpm.persistence.mapdb.MapDBProcessPersistenceContextManager" );
-                    Constructor< ? > jpaPersistenceCtxMngrCtor = jpaPersistenceCtxMngrClass.getConstructors()[0];
-                    this.jpm = (PersistenceContextManager) jpaPersistenceCtxMngrCtor.newInstance( this.env );
+                    Class< ? > mpdbPersistenceCtxMngrClass = Class.forName( "org.jbpm.persistence.mapdb.MapDBProcessPersistenceContextManager" );
+                    Constructor< ? > mapdbPersistenceCtxMngrCtor = mpdbPersistenceCtxMngrClass.getConstructors()[0];
+                    this.jpm = (PersistenceContextManager) mapdbPersistenceCtxMngrCtor.newInstance( this.env );
                 } catch ( ClassNotFoundException e ) {
                     this.jpm = new MapDBPersistenceContextManager( this.env );
                 } catch ( Exception e ) {
