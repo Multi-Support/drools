@@ -27,6 +27,7 @@ import java.util.Random;
 import org.drools.core.common.DefaultFactHandle;
 import org.drools.persistence.PersistenceContextManager;
 import org.drools.persistence.mapdb.MapDBEnvironmentName;
+import org.drools.persistence.mapdb.MapDBUserTransaction;
 import org.drools.persistence.mapdb.util.MapDBPersistenceUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -123,7 +124,9 @@ public class ReloadSessionTest {
         db.close();
      
         // Reload session from the database
-        context.put(MapDBEnvironmentName.DB_OBJECT, MapDBPersistenceUtil.makeDB());
+        DB newDb = MapDBPersistenceUtil.makeDB();
+        context.put(MapDBEnvironmentName.DB_OBJECT, newDb);
+        context.put(EnvironmentName.TRANSACTION, new MapDBUserTransaction(newDb));
         env = createEnvironment();
        
         // Re-initialize the knowledge session:

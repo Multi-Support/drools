@@ -31,10 +31,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.kie.api.KieBase;
+import org.kie.api.KieBaseConfiguration;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
 import org.kie.api.builder.Message.Level;
+import org.kie.api.conf.EqualityBehaviorOption;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.KieSession;
 import org.kie.internal.command.Context;
@@ -92,7 +94,9 @@ public class RuleFlowGroupRollbackTest {
         if (kbuilder.getResults().hasMessages(Level.ERROR)) {
         	fail (kbuilder.getResults().toString());
         }
-        KieBase kbase = KieServices.Factory.get().newKieContainer(kbuilder.getKieModule().getReleaseId()).getKieBase();
+        KieBaseConfiguration kconf = KieServices.Factory.get().newKieBaseConfiguration();
+        kconf.setOption(EqualityBehaviorOption.EQUALITY);
+        KieBase kbase = KieServices.Factory.get().newKieContainer(kbuilder.getKieModule().getReleaseId()).newKieBase(kconf);
 
         Environment env = MapDBPersistenceUtil.createEnvironment(context);
         return (CommandBasedStatefulKnowledgeSession) KieServices.Factory.get().getStoreServices().newKieSession( kbase, null, env );

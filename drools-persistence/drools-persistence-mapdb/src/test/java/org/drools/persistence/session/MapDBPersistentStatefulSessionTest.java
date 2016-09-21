@@ -27,6 +27,8 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.naming.InitialContext;
+import javax.transaction.Status;
+import javax.transaction.Transaction;
 import javax.transaction.UserTransaction;
 
 import org.drools.compiler.Address;
@@ -49,6 +51,7 @@ import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
 import org.kie.api.builder.Message.Level;
 import org.kie.api.runtime.Environment;
+import org.kie.api.runtime.EnvironmentName;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.rule.FactHandle;
@@ -322,7 +325,8 @@ public class MapDBPersistentStatefulSessionTest {
         internalCommandService = ((Interceptor) internalCommandService).getNext();
         assertEquals(LoggingInterceptor.class, internalCommandService.getClass());
 
-        UserTransaction ut = InitialContext.doLookup("java:comp/UserTransaction");
+        UserTransaction ut = (UserTransaction) context.get(EnvironmentName.TRANSACTION);
+        if (ut.getStatus() == Status.STATUS_ACTIVE) ut.commit();
         ut.begin();
         List<?> list = new ArrayList<Object>();
         ksession.setGlobal( "list", list );
