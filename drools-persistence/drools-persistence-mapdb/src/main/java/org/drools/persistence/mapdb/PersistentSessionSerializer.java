@@ -1,6 +1,7 @@
 package org.drools.persistence.mapdb;
 
 import java.io.IOException;
+import java.util.Base64;
 
 import org.drools.persistence.PersistentSession;
 import org.mapdb.DataInput2;
@@ -21,9 +22,8 @@ public class PersistentSessionSerializer extends GroupSerializerObjectArray<Pers
 	public PersistentSession deserialize(DataInput2 input, int available) throws IOException {
 		MapDBSession session = new MapDBSession();
 		long id = input.readLong();
-		int size = input.readInt();
-		byte[] data = new byte[size];
-		input.readFully(data);
+		String encodedData = input.readUTF();
+		byte[] data = Base64.getDecoder().decode(encodedData);
 		session.setData(data);
 		if (id > -1) {
 			session.setId(id);
@@ -33,13 +33,14 @@ public class PersistentSessionSerializer extends GroupSerializerObjectArray<Pers
 
 	@Override
 	public void serialize(DataOutput2 output, PersistentSession session) throws IOException {
-		session.transform();
 		Long id = session.getId();
-		byte[] data = session.getData();
-		int size = data.length;
 		output.writeLong(id == null ? -1L : id);
-		output.writeInt(size);;
-		output.write(data);
+		byte[] data = session.getData();
+		if (data == null) {
+			data = new byte[0];
+		}
+		String base64data = new String(Base64.getEncoder().encode(data));
+		output.writeUTF(base64data);
 	}
 
 }

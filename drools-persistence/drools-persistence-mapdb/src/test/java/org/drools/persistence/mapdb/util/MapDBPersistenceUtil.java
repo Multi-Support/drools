@@ -36,7 +36,7 @@ public class MapDBPersistenceUtil {
 		HashMap<String, Object> context = new HashMap<>();
 		DB db = makeDB();
 		context.put(DB_OBJECT, db);
-		context.put(TRANSACTION, new MapDBUserTransaction(db));
+		//context.put(TRANSACTION, new MapDBUserTransaction(db));
 		return context;
 	}
 

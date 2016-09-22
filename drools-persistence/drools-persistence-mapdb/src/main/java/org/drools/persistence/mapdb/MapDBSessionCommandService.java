@@ -117,6 +117,7 @@ public class MapDBSessionCommandService
 
             persistenceContext.joinTransaction();
             this.sessionInfo = persistenceContext.persist( this.sessionInfo );
+            registerUpdateSync();
             txm.commit( transactionOwner );
         } catch ( RuntimeException re ) {
             rollbackTransaction( re,
@@ -191,6 +192,7 @@ public class MapDBSessionCommandService
                           kbase,
                           conf,
                           persistenceContext );
+            registerUpdateSync();
             txm.commit( transactionOwner );
         } catch (SessionNotFoundException e){
             // do not rollback transaction otherwise it will mark it as aborted
@@ -532,6 +534,13 @@ public class MapDBSessionCommandService
         return this.ksession;
     }
 
+    private void registerUpdateSync() {
+        if (this.txm.getResource("TriggerUpdateTransactionSynchronization-"+this.toString()) == null) {
+            this.txm.registerTransactionSynchronization(new TriggerUpdateTransactionSynchronization(txm, env));
+            this.txm.putResource("TriggerUpdateTransactionSynchronization-"+this.toString(), true);
+        }
+    }
+
     public void addInterceptor(Interceptor interceptor) {
         addInterceptor(interceptor, true);
     }
@@ -605,8 +614,8 @@ public class MapDBSessionCommandService
                     logger.trace("Executing " + command.getClass().getSimpleName());
                     result = executeNext(command);
                 }
+                registerUpdateSync();
                 txm.commit( transactionOwner );
-
                 return result;
 
             } catch ( RuntimeException re ) {

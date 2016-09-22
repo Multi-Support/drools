@@ -2,6 +2,7 @@ package org.drools.persistence.mapdb;
 
 import org.drools.persistence.PersistenceContext;
 import org.drools.persistence.PersistenceContextManager;
+import org.drools.persistence.TransactionManager;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.EnvironmentName;
 import org.mapdb.DB;
@@ -13,16 +14,18 @@ public class MapDBPersistenceContextManager implements
 	private DB db;
 	private PersistenceContext cmdPersistenceContext;
 	private PersistenceContext appPersistenceContext;
+	private TransactionManager txm;
 
 	public MapDBPersistenceContextManager(Environment env) {
 		this.env = env;
 		this.db = (DB) env.get(MapDBEnvironmentName.DB_OBJECT);
+		this.txm = (TransactionManager) env.get(EnvironmentName.TRANSACTION_MANAGER);
 	}
 	
 	@Override
 	public PersistenceContext getApplicationScopedPersistenceContext() {
 		if (this.appPersistenceContext == null) {
-			this.appPersistenceContext = new MapDBPersistenceContext(db);
+			this.appPersistenceContext = new MapDBPersistenceContext(db, txm);
 			this.env.set( EnvironmentName.APP_SCOPED_ENTITY_MANAGER, this.appPersistenceContext );
 		}
 		return this.appPersistenceContext;
@@ -38,7 +41,7 @@ public class MapDBPersistenceContextManager implements
 
 	@Override
 	public void beginCommandScopedEntityManager() {
-		this.cmdPersistenceContext = new MapDBPersistenceContext(db);
+		this.cmdPersistenceContext = new MapDBPersistenceContext(db, txm);
 		this.env.set( EnvironmentName.CMD_SCOPED_ENTITY_MANAGER, this.cmdPersistenceContext );
 	}
 
@@ -62,5 +65,9 @@ public class MapDBPersistenceContextManager implements
 
 	protected DB getDB() {
 		return this.db;
+	}
+	
+	protected TransactionManager getTXM() {
+		return this.txm;
 	}
 }

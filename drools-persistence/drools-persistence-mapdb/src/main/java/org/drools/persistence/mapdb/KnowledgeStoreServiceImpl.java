@@ -24,17 +24,14 @@ import org.drools.core.command.CommandService;
 import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
 import org.drools.core.process.instance.WorkItemManagerFactory;
 import org.drools.core.time.TimerService;
-import org.drools.persistence.TransactionManagerFactory;
 import org.drools.persistence.processinstance.mapdb.MapDBWorkItemManagerFactory;
 import org.kie.api.KieBase;
 import org.kie.api.Service;
 import org.kie.api.persistence.jpa.KieStoreServices;
 import org.kie.api.runtime.CommandExecutor;
 import org.kie.api.runtime.Environment;
-import org.kie.api.runtime.EnvironmentName;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.TimerJobFactoryOption;
-import org.kie.internal.KnowledgeBaseFactory;
 import org.kie.internal.runtime.StatefulKnowledgeSession;
 import org.kie.internal.utils.ServiceRegistryImpl;
 
@@ -167,7 +164,6 @@ public class KnowledgeStoreServiceImpl
                                                 KieSessionConfiguration conf,
                                                 Environment env) {
 
-    	env = mergeEnvironment(env);
         try {
             Class< ? extends CommandExecutor> serviceClass = getCommandServiceClass();
             Constructor< ? extends CommandExecutor> constructor = serviceClass.getConstructor( Long.class,
@@ -193,37 +189,9 @@ public class KnowledgeStoreServiceImpl
         }
     }
 
-    private Environment mergeEnvironment(Environment env) {
-    	if (env == null) {
-    		env = KnowledgeBaseFactory.newEnvironment();
-    	}
-    	if (env.get(EnvironmentName.PERSISTENCE_CONTEXT_MANAGER) == null) {
-    		try {
-    			Class<?> clazz = Class.forName("org.jbpm.persistence.mapdb.MapDBProcessPersistenceContextManager");
-    			Constructor<?> c = clazz.getConstructor(Environment.class);
-    			env.set(EnvironmentName.PERSISTENCE_CONTEXT_MANAGER, c.newInstance(env));
-    		} catch (ClassNotFoundException e) {
-    			env.set(EnvironmentName.PERSISTENCE_CONTEXT_MANAGER, new MapDBPersistenceContextManager(env));
-    		} catch (Exception e) {
-    			e.printStackTrace();
-    			env.set(EnvironmentName.PERSISTENCE_CONTEXT_MANAGER, new MapDBPersistenceContextManager(env));
-    		}
-    	}
-    	Object tm = env.get(EnvironmentName.TRANSACTION_MANAGER);
-    	if (tm instanceof javax.transaction.TransactionManager) {
-    		Object ut = env.get(EnvironmentName.TRANSACTION);
-    		if (ut == null && tm instanceof javax.transaction.UserTransaction) {
-    		    env.set(EnvironmentName.TRANSACTION, tm);
-    		}
-            env.set(EnvironmentName.TRANSACTION_MANAGER, TransactionManagerFactory.get().newTransactionManager(env));
-    	}
-    	return env;
-    }
-    
     private CommandExecutor buildCommandService(KieBase kbase,
                                                 KieSessionConfiguration conf,
                                                 Environment env) {
-    	env = mergeEnvironment(env);
         Class< ? extends CommandExecutor> serviceClass = getCommandServiceClass();
         try {
             Constructor< ? extends CommandExecutor> constructor = serviceClass.getConstructor( KieBase.class,
@@ -249,7 +217,7 @@ public class KnowledgeStoreServiceImpl
 
     private KieSessionConfiguration mergeConfig(KieSessionConfiguration configuration) {
         KieSessionConfiguration merged = ((SessionConfiguration) configuration).addDefaultProperties(configProps);
-        merged.setOption(TimerJobFactoryOption.get("mapdb")); //TODO refactor drools-core so this can be overriden
+        merged.setOption(TimerJobFactoryOption.get("mapdb"));
         return merged;
     }
 

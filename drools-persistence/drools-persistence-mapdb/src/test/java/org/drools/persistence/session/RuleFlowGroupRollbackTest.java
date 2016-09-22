@@ -95,7 +95,7 @@ public class RuleFlowGroupRollbackTest {
         	fail (kbuilder.getResults().toString());
         }
         KieBaseConfiguration kconf = KieServices.Factory.get().newKieBaseConfiguration();
-        kconf.setOption(EqualityBehaviorOption.EQUALITY);
+        kconf.setOption(EqualityBehaviorOption.IDENTITY);
         KieBase kbase = KieServices.Factory.get().newKieContainer(kbuilder.getKieModule().getReleaseId()).newKieBase(kconf);
 
         Environment env = MapDBPersistenceUtil.createEnvironment(context);

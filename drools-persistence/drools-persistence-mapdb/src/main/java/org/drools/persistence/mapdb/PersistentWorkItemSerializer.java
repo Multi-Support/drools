@@ -1,6 +1,7 @@
 package org.drools.persistence.mapdb;
 
 import java.io.IOException;
+import java.util.Base64;
 
 import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.processinstance.mapdb.MapDBWorkItem;
@@ -22,12 +23,8 @@ public class PersistentWorkItemSerializer  extends GroupSerializerObjectArray<Pe
 	public PersistentWorkItem deserialize(DataInput2 input, int available) throws IOException {
 		MapDBWorkItem workItem = new MapDBWorkItem();
 		long id = input.readLong();
-		if (input.readBoolean()) {
-			int size = input.readInt();
-			byte[] data = new byte[size];
-			input.readFully(data);
-			workItem.setData(data);
-		}
+		String encodedData = input.readUTF();
+		workItem.setData(Base64.getDecoder().decode(encodedData));
 		int state = input.readInt();
 		workItem.setState(state);;
 		if (id > -1) {
@@ -40,12 +37,9 @@ public class PersistentWorkItemSerializer  extends GroupSerializerObjectArray<Pe
 	public void serialize(DataOutput2 output, PersistentWorkItem workItem) throws IOException {
 		MapDBWorkItem dbWorkItem = (MapDBWorkItem) workItem;
 		output.writeLong(workItem.getId() == null ? -1 : workItem.getId());
-		output.writeBoolean(dbWorkItem.getData() != null);
-		if (dbWorkItem.getData() != null) {
-			int size = dbWorkItem.getData().length;
-			output.writeInt(size);;
-			output.write(dbWorkItem.getData());
-		}
+		byte[] data = dbWorkItem.getData() == null ? new byte[0] : dbWorkItem.getData();
+		String base64data = new String(Base64.getEncoder().encode(data));
+		output.writeUTF(base64data);
 		output.writeInt(dbWorkItem.getState());
 	}
 }

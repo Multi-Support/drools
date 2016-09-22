@@ -325,8 +325,7 @@ public class MapDBPersistentStatefulSessionTest {
         internalCommandService = ((Interceptor) internalCommandService).getNext();
         assertEquals(LoggingInterceptor.class, internalCommandService.getClass());
 
-        UserTransaction ut = (UserTransaction) context.get(EnvironmentName.TRANSACTION);
-        if (ut.getStatus() == Status.STATUS_ACTIVE) ut.commit();
+        UserTransaction ut = InitialContext.doLookup("java:comp/UserTransaction");
         ut.begin();
         List<?> list = new ArrayList<Object>();
         ksession.setGlobal( "list", list );

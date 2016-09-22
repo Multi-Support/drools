@@ -76,7 +76,7 @@ public class MapDBWorkItemManager implements WorkItemManager, InternalWorkItemMa
 
 	private WorkItem internalGetWorkItem(MapDBWorkItem workItemInfo) {
 		Environment env = kruntime.getEnvironment();
-        WorkItem workItem = workItemInfo.getWorkItem( env, (InternalKnowledgeBase) kruntime.getKieBase() );
+		WorkItem workItem = workItemInfo.getWorkItem( env, (InternalKnowledgeBase) kruntime.getKieBase() );
         return workItem;
 	}
 

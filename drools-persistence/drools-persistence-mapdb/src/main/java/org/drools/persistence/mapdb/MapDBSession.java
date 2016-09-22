@@ -2,18 +2,25 @@ package org.drools.persistence.mapdb;
 
 import org.drools.persistence.PersistentSession;
 import org.drools.persistence.SessionMarshallingHelper;
+import org.kie.api.runtime.Environment;
+import org.mapdb.BTreeMap;
+import org.mapdb.DB;
+import org.mapdb.Serializer;
 
-public class MapDBSession implements PersistentSession {
-
+public class MapDBSession implements PersistentSession, MapDBTransformable {
+	
 	private SessionMarshallingHelper marshallingHelper;
 	private byte[] data;
 	private Long id;
 
 	@Override
 	public void transform() {
-		if (marshallingHelper != null) {
-			this.data = marshallingHelper.getSnapshot();
-		}
+		this.data = marshallingHelper.getSnapshot();
+	}
+
+	@Override
+	public void setEnvironment(Environment env) {
+		//do nothing
 	}
 
 	@Override
@@ -39,4 +46,18 @@ public class MapDBSession implements PersistentSession {
 		this.data = data;
 	}
 
+	@Override
+	public String getMapKey() {
+		return "session";
+	}
+
+	@Override
+	public boolean updateOnMap(DB db) {
+		BTreeMap<Long, PersistentSession> map = db.treeMap(
+				getMapKey(), 
+				Serializer.LONG, 
+				new PersistentSessionSerializer()).open();
+		map.put(id, this);
+		return true;
+	}
 }

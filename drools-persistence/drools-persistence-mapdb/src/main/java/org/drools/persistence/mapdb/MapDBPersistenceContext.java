@@ -3,6 +3,9 @@ package org.drools.persistence.mapdb;
 import org.drools.persistence.PersistenceContext;
 import org.drools.persistence.PersistentSession;
 import org.drools.persistence.PersistentWorkItem;
+import org.drools.persistence.TransactionManager;
+import org.drools.persistence.TransactionManagerHelper;
+import org.drools.persistence.processinstance.mapdb.MapDBWorkItem;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
 import org.mapdb.serializer.GroupSerializer;
@@ -11,16 +14,18 @@ import org.mapdb.serializer.SerializerLong;
 public class MapDBPersistenceContext implements PersistenceContext {
 
 	protected DB db;
+	protected TransactionManager txm;
 	private GroupSerializer<PersistentSession> sessionSerializer = new PersistentSessionSerializer();
 	private GroupSerializer<Long> idSerializer = new SerializerLong();
 	private GroupSerializer<PersistentWorkItem> workItemSerializer = new PersistentWorkItemSerializer();
 	private BTreeMap<Long, PersistentWorkItem> workItemMap;
 	private BTreeMap<Long, PersistentSession> sessionMap;
 
-	public MapDBPersistenceContext(DB db) {
+	public MapDBPersistenceContext(DB db, TransactionManager txm) {
 		this.db = db;
-		this.workItemMap = db.treeMap("workItem", idSerializer, workItemSerializer).createOrOpen();
-		this.sessionMap = db.treeMap("session", idSerializer, sessionSerializer).createOrOpen(); 
+		this.txm = txm;
+		this.workItemMap = db.treeMap(new MapDBWorkItem().getMapKey(), idSerializer, workItemSerializer).createOrOpen();
+		this.sessionMap = db.treeMap(new MapDBSession().getMapKey(), idSerializer, sessionSerializer).createOrOpen(); 
     }
 	
 	@Override
@@ -32,13 +37,18 @@ public class MapDBPersistenceContext implements PersistenceContext {
 		} else {
 			id = session.getId();
 		}
-		sessionMap.put(id, session);
+		TransactionManagerHelper.addToUpdatableSet(txm, session);
+		sessionMap.put(id, session); //to be placed in map by triggerupdatesync
 		return session;
 	}
 
 	@Override
 	public PersistentSession findSession(Long id) {
-		return sessionMap.getOrDefault(id, null);
+		PersistentSession session = sessionMap.getOrDefault(id, null);
+		if (session != null) {
+			TransactionManagerHelper.addToUpdatableSet(txm, session);
+		}
+		return session;
 	}
 
 	@Override
@@ -69,13 +79,18 @@ public class MapDBPersistenceContext implements PersistenceContext {
 		} else {
 			id = workItem.getId();
 		}
+		TransactionManagerHelper.addToUpdatableSet(txm, workItem);
 		workItemMap.put(id, workItem);
 		return workItem;
 	}
 
 	@Override
 	public PersistentWorkItem findWorkItem(Long id) {
-		return workItemMap.getOrDefault(id, null);
+		PersistentWorkItem workItem = workItemMap.getOrDefault(id, null);
+		if (workItem != null) {
+			TransactionManagerHelper.addToUpdatableSet(txm, workItem);
+		}
+		return workItem;
 	}
 
 	@Override
@@ -90,6 +105,7 @@ public class MapDBPersistenceContext implements PersistenceContext {
 	@Override
 	public PersistentWorkItem merge(PersistentWorkItem workItem) {
 		workItemMap.replace(workItem.getId(), workItem);
+		TransactionManagerHelper.addToUpdatableSet(txm, workItem);
 		return workItem;
 	}
 }

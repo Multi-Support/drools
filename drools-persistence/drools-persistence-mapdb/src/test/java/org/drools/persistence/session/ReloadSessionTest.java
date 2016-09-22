@@ -126,7 +126,7 @@ public class ReloadSessionTest {
         // Reload session from the database
         DB newDb = MapDBPersistenceUtil.makeDB();
         context.put(MapDBEnvironmentName.DB_OBJECT, newDb);
-        context.put(EnvironmentName.TRANSACTION, new MapDBUserTransaction(newDb));
+        //context.put(EnvironmentName.TRANSACTION, new MapDBUserTransaction(newDb));
         env = createEnvironment();
        
         // Re-initialize the knowledge session:
