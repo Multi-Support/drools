@@ -104,7 +104,7 @@ public class MapDBPersistenceContext implements PersistenceContext {
 
 	@Override
 	public PersistentWorkItem merge(PersistentWorkItem workItem) {
-		workItemMap.replace(workItem.getId(), workItem);
+		workItemMap.put(workItem.getId(), workItem);
 		TransactionManagerHelper.addToUpdatableSet(txm, workItem);
 		return workItem;
 	}

@@ -49,6 +49,7 @@ public class MapDBWorkItemManager implements WorkItemManager, InternalWorkItemMa
         if ( this.workItems != null ) {
             workItemInfo = this.workItems.get( id );
             if ( workItemInfo != null ) {
+            	workItemInfo.transform();
                 workItemInfo = (MapDBWorkItem) context.merge( workItemInfo );
             }
         }
