@@ -23,7 +23,9 @@ public class PersistentWorkItemSerializer  extends GroupSerializerObjectArray<Pe
 	public PersistentWorkItem deserialize(DataInput2 input, int available) throws IOException {
 		MapDBWorkItem workItem = new MapDBWorkItem();
 		long id = input.readLong();
+		long processInstanceId = input.readLong();
 		String encodedData = input.readUTF();
+		workItem.setProcessInstanceId(processInstanceId);
 		workItem.setData(Base64.getDecoder().decode(encodedData));
 		int state = input.readInt();
 		workItem.setState(state);;
@@ -37,6 +39,7 @@ public class PersistentWorkItemSerializer  extends GroupSerializerObjectArray<Pe
 	public void serialize(DataOutput2 output, PersistentWorkItem workItem) throws IOException {
 		MapDBWorkItem dbWorkItem = (MapDBWorkItem) workItem;
 		output.writeLong(workItem.getId() == null ? -1 : workItem.getId());
+		output.writeLong(workItem.getProcessInstanceId());
 		byte[] data = dbWorkItem.getData() == null ? new byte[0] : dbWorkItem.getData();
 		String base64data = new String(Base64.getEncoder().encode(data));
 		output.writeUTF(base64data);

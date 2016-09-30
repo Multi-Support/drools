@@ -26,6 +26,7 @@ public class MapDBWorkItem implements PersistentWorkItem, MapDBTransformable {
 	private byte[] data;
 	private WorkItem workItem;
 	private Environment env;
+	private long processInstanceId;
 	
 	public MapDBWorkItem() {
 	}
@@ -43,6 +44,7 @@ public class MapDBWorkItem implements PersistentWorkItem, MapDBTransformable {
 	@Override
 	public void transform() {
 		this.state = workItem.getState();
+		this.processInstanceId = workItem.getProcessInstanceId();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             MarshallerWriteContext context = new MarshallerWriteContext( baos,
@@ -97,6 +99,14 @@ public class MapDBWorkItem implements PersistentWorkItem, MapDBTransformable {
 	public String getMapKey() {
 		return "workItem";
 	}
+	
+	public long getProcessInstanceId() {
+		return processInstanceId;
+	}
+
+	public void setProcessInstanceId(long processInstanceId) {
+		this.processInstanceId = processInstanceId;
+	}
 
 	@Override
 	public boolean updateOnMap(DB db) {
@@ -112,8 +122,11 @@ public class MapDBWorkItem implements PersistentWorkItem, MapDBTransformable {
 		result = prime * result + Arrays.hashCode(data);
 		result = prime * result + ((env == null) ? 0 : env.hashCode());
 		result = prime * result + ((id == null) ? 0 : id.hashCode());
+		result = prime * result
+				+ (int) (processInstanceId ^ (processInstanceId >>> 32));
 		result = prime * result + state;
-		result = prime * result + ((workItem == null) ? 0 : workItem.hashCode());
+		result = prime * result
+				+ ((workItem == null) ? 0 : workItem.hashCode());
 		return result;
 	}
 
@@ -137,6 +150,8 @@ public class MapDBWorkItem implements PersistentWorkItem, MapDBTransformable {
 			if (other.id != null)
 				return false;
 		} else if (!id.equals(other.id))
+			return false;
+		if (processInstanceId != other.processInstanceId)
 			return false;
 		if (state != other.state)
 			return false;
