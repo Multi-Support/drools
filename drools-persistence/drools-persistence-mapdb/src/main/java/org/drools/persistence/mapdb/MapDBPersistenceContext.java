@@ -6,6 +6,7 @@ import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.TransactionManager;
 import org.drools.persistence.TransactionManagerHelper;
 import org.drools.persistence.processinstance.mapdb.MapDBWorkItem;
+import org.mapdb.Atomic;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
 import org.mapdb.serializer.GroupSerializer;
@@ -20,19 +21,23 @@ public class MapDBPersistenceContext implements PersistenceContext {
 	private GroupSerializer<PersistentWorkItem> workItemSerializer = new PersistentWorkItemSerializer();
 	private BTreeMap<Long, PersistentWorkItem> workItemMap;
 	private BTreeMap<Long, PersistentSession> sessionMap;
+	private Atomic.Long nextSessionId;
+	private Atomic.Long nextWorkItemId;
 
 	public MapDBPersistenceContext(DB db, TransactionManager txm) {
 		this.db = db;
 		this.txm = txm;
 		this.workItemMap = db.treeMap(new MapDBWorkItem().getMapKey(), idSerializer, workItemSerializer).createOrOpen();
-		this.sessionMap = db.treeMap(new MapDBSession().getMapKey(), idSerializer, sessionSerializer).createOrOpen(); 
+		this.sessionMap = db.treeMap(new MapDBSession().getMapKey(), idSerializer, sessionSerializer).createOrOpen();
+		this.nextSessionId = db.atomicLong("sessionId").createOrOpen();
+		this.nextWorkItemId = db.atomicLong("workItemId").createOrOpen();
     }
 	
 	@Override
 	public PersistentSession persist(PersistentSession session) {
 		long id;
 		if (session.getId() == null || session.getId() == -1) {
-			id = sessionMap.size() + 1L;
+			id = nextSessionId.incrementAndGet();
 			session.setId(id);
 		} else {
 			id = session.getId();
@@ -74,7 +79,7 @@ public class MapDBPersistenceContext implements PersistenceContext {
 	public PersistentWorkItem persist(PersistentWorkItem workItem) {
 		long id;
 		if (workItem.getId() == null || workItem.getId() == -1) {
-			id = workItemMap.size() + 1L;
+			id = nextWorkItemId.incrementAndGet();
 			workItem.setId(id);
 		} else {
 			id = workItem.getId();
