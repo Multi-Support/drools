@@ -289,7 +289,7 @@ public class ProtobufOutputMarshaller {
                     }
                 }
             }
-            wm.flushNonMarshallablePropagations();
+            wm.flushPropagations();
         }
     }
 

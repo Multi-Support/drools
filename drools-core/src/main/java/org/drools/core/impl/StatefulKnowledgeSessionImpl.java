@@ -85,6 +85,7 @@ import org.drools.core.reteoo.ObjectTypeConf;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.PathMemory;
 import org.drools.core.reteoo.QueryTerminalNode;
+import org.drools.core.reteoo.RightTuple;
 import org.drools.core.reteoo.RuleTerminalNode;
 import org.drools.core.reteoo.SegmentMemory;
 import org.drools.core.reteoo.TerminalNode;
@@ -163,7 +164,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.drools.core.common.PhreakPropagationContextFactory.createPropagationContextForFact;
-import static org.drools.core.reteoo.ObjectTypeNode.retractRightTuples;
 import static org.drools.core.reteoo.PropertySpecificUtil.allSetButTraitBitMask;
 
 public class StatefulKnowledgeSessionImpl extends AbstractRuntime
@@ -797,6 +797,9 @@ public class StatefulKnowledgeSessionImpl extends AbstractRuntime
             this.lock.lock();
 
             this.kBase.executeQueuedActions();
+            flushPropagations();
+            // it is necessary to flush the propagation queue twice to perform all the expirations
+            // eventually enqueued by events that have been inserted when already expired
             flushPropagations();
 
             DroolsQuery queryObject = new DroolsQuery( queryName,
@@ -1839,9 +1842,9 @@ public class StatefulKnowledgeSessionImpl extends AbstractRuntime
                 return;
             }
 
-            PropagationContext context = createPropagationContextForFact( workingMemory, factHandle, PropagationContext.EXPIRATION );
-            retractRightTuples( factHandle, context, workingMemory );
             expireLeftTuples();
+            expireRightTuples();
+            PropagationContext context = createPropagationContextForFact( workingMemory, factHandle, PropagationContext.EXPIRATION );
             workingMemory.getAgenda().registerExpiration( context );
 
             factHandle.decreaseOtnCount();
@@ -1862,6 +1865,14 @@ public class StatefulKnowledgeSessionImpl extends AbstractRuntime
             }
         }
 
+        private void expireRightTuples() {
+            for ( RightTuple rightTuple = factHandle.getFirstRightTuple(); rightTuple != null; rightTuple = rightTuple.getHandleNext()) {
+                for ( LeftTuple child = rightTuple.getFirstChild(); child != null; child = child.getHandleNext() ) {
+                    expireLeftTuple(child);
+                }
+            }
+        }
+
         private void expireLeftTuple(LeftTuple leftTuple) {
             if (!leftTuple.isExpired()) {
                 leftTuple.setExpired( true );
@@ -1872,11 +1883,6 @@ public class StatefulKnowledgeSessionImpl extends AbstractRuntime
                     expireLeftTuple(peer);
                 }
             }
-        }
-
-        @Override
-        public boolean isMarshallable() {
-            return true;
         }
     }
 
@@ -2138,12 +2144,6 @@ public class StatefulKnowledgeSessionImpl extends AbstractRuntime
     @Override
     public boolean tryDeactivate() {
         return agenda.tryDeactivate();
-    }
-
-    @Override
-    public void flushNonMarshallablePropagations() {
-        propagationList.flushNonMarshallable();
-        executeQueuedActionsForRete();
     }
 
     @Override
