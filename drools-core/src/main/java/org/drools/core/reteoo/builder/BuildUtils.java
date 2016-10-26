@@ -124,7 +124,6 @@ public class BuildUtils {
         }
 
         if ( node == null ) {
-            // SteamMode in Phreak does not allow sharing
             // only attach() if it is a new node
             node = candidate;
 
@@ -138,7 +137,7 @@ public class BuildUtils {
                 partition = context.getPartitionId();
             }
             // set node whit the actual partition label
-            node.setPartitionId( partition );
+            node.setPartitionId( context, partition );
             node.attach(context);
             // adds the node to the context list to track all added nodes
             context.getNodes().add( node );
@@ -147,6 +146,11 @@ public class BuildUtils {
             mergeNodes(node, candidate);
             // undo previous id assignment
             context.releaseId( candidate.getId() );
+            if ( partition == null && context.getPartitionId() == null ) {
+                partition = node.getPartitionId();
+                // if no label in current context, create one
+                context.setPartitionId( partition );
+            }
         }
         node.addAssociation( context, context.getRule() );
         return (T)node;

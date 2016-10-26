@@ -27,6 +27,7 @@ import org.drools.core.common.Memory;
 import org.drools.core.common.MemoryFactory;
 import org.drools.core.common.QuadroupleBetaConstraints;
 import org.drools.core.common.QuadroupleNonIndexSkipBetaConstraints;
+import org.drools.core.common.RuleBasePartitionId;
 import org.drools.core.common.SingleBetaConstraints;
 import org.drools.core.common.SingleNonIndexSkipBetaConstraints;
 import org.drools.core.common.TripleBetaConstraints;
@@ -189,6 +190,17 @@ public abstract class BetaNode extends LeftTupleSource
         super.initDeclaredMask(context, leftInput);
     }
 
+    @Override
+    public void setPartitionId(BuildContext context, RuleBasePartitionId partitionId ) {
+        if (rightInput.getPartitionId() != RuleBasePartitionId.MAIN_PARTITION && !rightInput.getPartitionId().equals( partitionId )) {
+            this.partitionId = rightInput.getPartitionId();
+            context.setPartitionId( this.partitionId );
+            leftInput.setSourcePartitionId( context, this.partitionId );
+        } else {
+            this.partitionId = partitionId;
+        }
+    }
+
     protected void setLeftListenedProperties(List<String> leftListenedProperties) {
         this.leftListenedProperties = leftListenedProperties;
     }
@@ -299,7 +311,7 @@ public abstract class BetaNode extends LeftTupleSource
         }
 
         if (shouldFlush) {
-            flushLeftTupleIfNecessary( wm, memory.getSegmentMemory(), null, isStreamMode() );
+            flushLeftTupleIfNecessary( wm, memory.getSegmentMemory(), isStreamMode() );
         }
     }
 
@@ -347,14 +359,19 @@ public abstract class BetaNode extends LeftTupleSource
 
         boolean stagedDeleteWasEmpty = stagedRightTuples.addDelete(rightTuple);
 
+        boolean shouldFlush = isStreamMode();
         if ( memory.getAndDecCounter() == 1 ) {
             if ( stagedDeleteWasEmpty ) {
                 memory.setNodeDirtyWithoutNotify();
             }
-            memory.unlinkNode(wm);
+            shouldFlush = memory.unlinkNode(wm) | shouldFlush;
         } else if ( stagedDeleteWasEmpty ) {
             // nothing staged before, notify rule, so it can evaluate network
-            memory.setNodeDirty( wm );
+            shouldFlush = memory.setNodeDirty( wm ) | shouldFlush;
+        }
+
+        if (shouldFlush) {
+            flushLeftTupleIfNecessary( wm, memory.getSegmentMemory(), isStreamMode() );
         }
     }
 
@@ -365,8 +382,13 @@ public abstract class BetaNode extends LeftTupleSource
 
         boolean stagedUpdateWasEmpty = stagedRightTuples.addUpdate( rightTuple );
 
+        boolean shouldFlush = isStreamMode();
         if ( stagedUpdateWasEmpty  ) {
-            memory.setNodeDirty( wm );
+            shouldFlush = memory.setNodeDirty( wm ) | shouldFlush;
+        }
+
+        if (shouldFlush) {
+            flushLeftTupleIfNecessary( wm, memory.getSegmentMemory(), isStreamMode() );
         }
     }
 
@@ -538,10 +560,6 @@ public abstract class BetaNode extends LeftTupleSource
     public void dumpMemory(final InternalWorkingMemory workingMemory) {
         final MemoryVisitor visitor = new MemoryVisitor( workingMemory );
         visitor.visit( this );
-    }
-
-    public LeftTupleSource getLeftTupleSource() {
-        return this.leftInput;
     }
 
     protected int calculateHashCode() {
