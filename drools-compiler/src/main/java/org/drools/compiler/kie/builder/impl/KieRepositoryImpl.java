@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.net.MalformedURLException;
@@ -171,8 +172,17 @@ public class KieRepositoryImpl
                                          pomPropertiesUrl.getHost(),
                                          pomPropertiesUrl.getPort(),
                                          pathToJar + "!/" + KieModuleModelImpl.KMODULE_JAR_PATH );
+                
+                // URLConnection.getContentLength() returns -1 if the content length is not known, unable to locate and read from the kmodule
+                // if URL backed by 'file:' then FileURLConnection.getContentLength() returns 0, as per java.io.File.length() returns 0L if the file does not exist. (the same also for WildFly's VFS FileURLConnection) 
+                if ( pathToKmodule.openConnection().getContentLength() <= 0 ) {
+                    return null;
+                }
             } catch (MalformedURLException e) {
                 log.error( "Unable to reconstruct path to kmodule for " + releaseId );
+                return null;
+            } catch (IOException e) {
+                log.error( "Unable to read from path to kmodule for " + releaseId );
                 return null;
             }
 
