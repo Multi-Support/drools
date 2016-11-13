@@ -16,26 +16,24 @@
 
 package org.drools.core.command.runtime.rule;
 
+import org.drools.core.command.IdentifiableResult;
+import org.drools.core.command.impl.ExecutableCommand;
+import org.drools.core.command.impl.RegistryContext;
+import org.drools.core.impl.StatefulKnowledgeSessionImpl;
+import org.drools.core.runtime.impl.ExecutionResultImpl;
+import org.kie.api.runtime.KieSession;
+import org.kie.api.runtime.rule.AgendaFilter;
+import org.kie.internal.command.Context;
+
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
-import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
-import org.drools.core.base.RuleNameSerializationAgendaFilter;
-import org.drools.core.command.IdentifiableResult;
-import org.drools.core.command.impl.GenericCommand;
-import org.drools.core.command.impl.KnowledgeCommandContext;
-import org.drools.core.impl.StatefulKnowledgeSessionImpl;
-import org.drools.core.runtime.impl.ExecutionResultImpl;
-import org.kie.internal.command.Context;
-import org.kie.api.runtime.KieSession;
-import org.kie.api.runtime.rule.AgendaFilter;
-
 @XmlRootElement
 @XmlAccessorType(XmlAccessType.NONE)
-public class FireAllRulesCommand implements GenericCommand<Integer>, IdentifiableResult {
+public class FireAllRulesCommand implements ExecutableCommand<Integer>, IdentifiableResult {
 
     @XmlAttribute
     private int          max          = -1;
@@ -99,7 +97,7 @@ public class FireAllRulesCommand implements GenericCommand<Integer>, Identifiabl
     }
 
     public Integer execute(Context context) {
-        KieSession ksession = ((KnowledgeCommandContext) context).getKieSession();
+        KieSession ksession = ((RegistryContext)context).lookup( KieSession.class );
         int fired;
         if ( max != -1 && agendaFilter != null ) {
             fired = ((StatefulKnowledgeSessionImpl) ksession).fireAllRules( agendaFilter, max );
@@ -112,8 +110,7 @@ public class FireAllRulesCommand implements GenericCommand<Integer>, Identifiabl
         }
 
         if ( this.outIdentifier != null ) {
-            ExecutionResultImpl results = ((StatefulKnowledgeSessionImpl)ksession).getExecutionResult();
-            results.getResults().put(this.outIdentifier, fired);
+            ((RegistryContext) context).lookup( ExecutionResultImpl.class ).setResult(this.outIdentifier, fired);
         }
         return fired;
     }

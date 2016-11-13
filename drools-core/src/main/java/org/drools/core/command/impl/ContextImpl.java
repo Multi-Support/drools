@@ -16,43 +16,75 @@
 
 package org.drools.core.command.impl;
 
+import org.drools.core.world.impl.ContextManagerImpl;
+import org.kie.internal.command.Context;
+import org.kie.internal.command.ContextManager;
+
+import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.kie.internal.command.Context;
-import org.kie.internal.command.World;
+public class ContextImpl implements RegistryContext {
 
-public class ContextImpl
-    implements
-    Context {
+    public static final String        REGISTRY = "__REGISTRY__";
 
-    private World               manager;
+    private final Map<String, Object> map = new ConcurrentHashMap<String, Object>();
 
-    private String              name;
+    private final ContextManager      manager;
 
-    private Map<String, Object> context = new ConcurrentHashMap<String, Object>();
+    private final String              name;
 
-    private Context             parent;
+    private final Context             delegate;
 
-    public ContextImpl(String name,
-                       World manager) {
-        this.name = name;
-        this.manager = manager;
+    public ContextImpl() {
+        this( UUID.randomUUID().toString(), new ContextManagerImpl() );
     }
 
     public ContextImpl(String name,
-                       World manager,
+                       ContextManager manager) {
+        this( name, manager, null );
+    }
+
+    public ContextImpl(String name,
+                       ContextManager manager,
                        Context delegate) {
         this.name = name;
         this.manager = manager;
-        setParent( delegate );
+        this.delegate = delegate;
+        set(REGISTRY, new HashMap<String, Object>() );
     }
 
-    public void setParent(Context delegate) {
-        this.parent = delegate;
+    public Object get(String identifier) {
+        if(identifier == null || identifier.equals("")){
+            return null;
+        }
+
+        Object object = null;
+        if ( map.containsKey(identifier) ) {
+            object = map.get( identifier );
+        } else if ( delegate != null ) {
+            object = delegate.get( identifier );
+        }
+
+        return object;
     }
 
-    public World getContextManager() {
+    @Override
+    public void set(String identifier, Object value) {
+        map.put( identifier, value );
+    }
+
+    @Override
+    public void remove(String identifier) {
+        map.remove( identifier );
+    }
+
+    public boolean has(String identifier) {
+        return map.containsKey( identifier );
+    }
+
+    public ContextManager getContextManager() {
         return this.manager;
     }
 
@@ -60,30 +92,21 @@ public class ContextImpl
         return this.name;
     }
 
-    public Object get(String identifier) {
-        if(identifier == null || identifier.equals("")){
-            return null;
-        }
-        Object object = context.get( identifier );
-        if ( object == null && parent != null ) {
-            object = this.parent.get( identifier );
-        }
-        return object;
-    }
-
-    public void set(String name,
-                    Object object) {
-        context.put( name,
-                     object );
-    }
-
-    public void remove(String name) {
-        context.remove( name );
+    @Override
+    public String toString() {
+        return "ContextImpl{" +
+               "name='" + name + '\'' +
+               '}';
     }
 
     @Override
-    public String toString() {
-        return "ContextImpl [name=" + name + ", parent=" + parent.getName() + ", context=" + context + "]";
+    public <T> ContextImpl register( Class<T> clazz, T instance ) {
+        ((Map<String, Object>)get(ContextImpl.REGISTRY)).put( clazz.getName(), instance );
+        return this;
     }
 
+    @Override
+    public <T> T lookup( Class<T> clazz ) {
+        return (T) ((Map<String, Object>)get(ContextImpl.REGISTRY)).get( clazz.getName() );
+    }
 }
