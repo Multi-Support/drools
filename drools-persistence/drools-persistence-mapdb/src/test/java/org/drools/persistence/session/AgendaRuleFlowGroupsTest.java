@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
-import org.drools.core.command.impl.GenericCommand;
-import org.drools.core.command.impl.KnowledgeCommandContext;
+import org.drools.core.command.impl.ExecutableCommand;
+import org.drools.core.command.impl.RegistryContext;
 import org.drools.core.common.InternalAgenda;
 import org.drools.persistence.mapdb.util.MapDBPersistenceUtil;
 import org.junit.After;
@@ -142,8 +142,8 @@ public class AgendaRuleFlowGroupsTest {
     
     private KieSession stripSession(KieSession ksession) {
         if (ksession instanceof CommandBasedStatefulKnowledgeSession) {
-            return ((KnowledgeCommandContext)((CommandBasedStatefulKnowledgeSession) ksession).
-                    getCommandService().getContext()).getKieSession();
+            return ((RegistryContext)((CommandBasedStatefulKnowledgeSession) ksession).
+                    getCommandService().getContext()).lookup( KieSession.class );
         }
         
         return ksession;
@@ -170,7 +170,7 @@ public class AgendaRuleFlowGroupsTest {
 	}
 	
 	@SuppressWarnings("serial")
-	public class ActivateRuleFlowCommand implements GenericCommand<Object> {
+	public class ActivateRuleFlowCommand implements ExecutableCommand<Object> {
 		
 		private String ruleFlowGroupName;
 		
@@ -179,7 +179,7 @@ public class AgendaRuleFlowGroupsTest {
 		}
 
 	    public Void execute(Context context) {
-	        KieSession ksession = ((KnowledgeCommandContext) context).getKieSession();
+	        KieSession ksession = ((RegistryContext) context).lookup( KieSession.class );
 	        ((InternalAgenda) ksession.getAgenda()).activateRuleFlowGroup(ruleFlowGroupName);
 	        return null;
 	    }
@@ -187,7 +187,7 @@ public class AgendaRuleFlowGroupsTest {
 	}
 	
 	@SuppressWarnings("serial")
-    public class ActivateAgendaGroupCommand implements GenericCommand<Object> {
+    public class ActivateAgendaGroupCommand implements ExecutableCommand<Object> {
         
         private String agendaGroupName;
         
@@ -196,7 +196,7 @@ public class AgendaRuleFlowGroupsTest {
         }
 
         public Void execute(Context context) {
-            KieSession ksession = ((KnowledgeCommandContext) context).getKieSession();
+            KieSession ksession = ((RegistryContext) context).lookup( KieSession.class );
             ((InternalAgenda) ksession.getAgenda()).getAgendaGroup(agendaGroupName).setFocus();
             return null;
         }
@@ -204,7 +204,7 @@ public class AgendaRuleFlowGroupsTest {
     }
 	
 	@SuppressWarnings("serial")
-	public class ExceptionCommand implements GenericCommand<Object> {
+	public class ExceptionCommand implements ExecutableCommand<Object> {
 
 	    public Void execute(Context context) {
 	    	throw new RuntimeException();

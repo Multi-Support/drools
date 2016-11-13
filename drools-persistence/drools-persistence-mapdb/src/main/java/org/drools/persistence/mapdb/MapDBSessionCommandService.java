@@ -26,8 +26,7 @@ import org.drools.core.command.Interceptor;
 import org.drools.core.command.impl.AbstractInterceptor;
 import org.drools.core.command.impl.ContextImpl;
 import org.drools.core.command.impl.DefaultCommandService;
-import org.drools.core.command.impl.FixedKnowledgeCommandContext;
-import org.drools.core.command.impl.KnowledgeCommandContext;
+import org.drools.core.command.impl.RegistryContext;
 import org.drools.core.command.runtime.DisposeCommand;
 import org.drools.core.command.runtime.UnpersistableCommand;
 import org.drools.core.common.EndOperationListener;
@@ -74,7 +73,7 @@ public class MapDBSessionCommandService
 
     private KieSession                 ksession;
     private Environment                env;
-    private KnowledgeCommandContext    kContext;
+    private RegistryContext    kContext;
     private CommandService             commandService;
 
     private TransactionManager         txm;
@@ -151,11 +150,13 @@ public class MapDBSessionCommandService
 
         ((InternalKnowledgeRuntime) this.ksession).setEndOperationListener( new EndOperationListenerImpl(this.txm, this.sessionInfo ) );
         
-        this.kContext = new FixedKnowledgeCommandContext( new ContextImpl( "ksession", null),
+        this.kContext = new ContextImpl().register( KieSession.class, this.ksession);
+        
+        /*this.kContext = new FixedKnowledgeCommandContext( new ContextImpl( "ksession", null),
                                                           null,
                                                           null,
                                                           this.ksession,
-                                                          null );
+                                                          null );*/
 
         this.commandService = new TransactionInterceptor(kContext);
 
@@ -259,11 +260,7 @@ public class MapDBSessionCommandService
 
         if ( this.kContext == null ) {
             // this should only happen when this class is first constructed
-            this.kContext = new FixedKnowledgeCommandContext( new ContextImpl( "ksession", null),
-                                                              null,
-                                                              null,
-                                                              this.ksession,
-                                                              null );
+        	this.kContext = new ContextImpl().register( KieSession.class, this.ksession );
         }
 
         this.commandService = new TransactionInterceptor(kContext);

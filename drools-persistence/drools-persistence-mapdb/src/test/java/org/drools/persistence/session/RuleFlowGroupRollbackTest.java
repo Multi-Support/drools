@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
-import org.drools.core.command.impl.GenericCommand;
-import org.drools.core.command.impl.KnowledgeCommandContext;
+import org.drools.core.command.impl.ExecutableCommand;
+import org.drools.core.command.impl.RegistryContext;
 import org.drools.core.common.InternalAgenda;
 import org.drools.persistence.mapdb.util.MapDBPersistenceUtil;
 import org.junit.After;
@@ -103,7 +103,7 @@ public class RuleFlowGroupRollbackTest {
 	}
 	
 	@SuppressWarnings("serial")
-	public class ActivateRuleFlowCommand implements GenericCommand<Object> {
+	public class ActivateRuleFlowCommand implements ExecutableCommand<Object> {
 		
 		private String ruleFlowGroupName;
 		
@@ -112,7 +112,7 @@ public class RuleFlowGroupRollbackTest {
 		}
 
 	    public Void execute(Context context) {
-	        KieSession ksession = ((KnowledgeCommandContext) context).getKieSession();
+	        KieSession ksession = ((RegistryContext) context).lookup( KieSession.class );
 	        ((InternalAgenda) ksession.getAgenda()).activateRuleFlowGroup(ruleFlowGroupName);
 	        return null;
 	    }
@@ -120,7 +120,7 @@ public class RuleFlowGroupRollbackTest {
 	}
 	
 	@SuppressWarnings("serial")
-	public class ExceptionCommand implements GenericCommand<Object> {
+	public class ExceptionCommand implements ExecutableCommand<Object> {
 
 	    public Void execute(Context context) {
 	    	throw new RuntimeException("(Expected) exception thrown by test");
