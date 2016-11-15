@@ -6,6 +6,7 @@ import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.TransactionManager;
 import org.drools.persistence.TransactionManagerHelper;
 import org.drools.persistence.processinstance.mapdb.MapDBWorkItem;
+import org.kie.api.persistence.ObjectStoringStrategy;
 import org.mapdb.Atomic;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
@@ -16,6 +17,7 @@ public class MapDBPersistenceContext implements PersistenceContext {
 
 	protected DB db;
 	protected TransactionManager txm;
+	protected ObjectStoringStrategy[] strategies;
 	private GroupSerializer<PersistentSession> sessionSerializer = new PersistentSessionSerializer();
 	private GroupSerializer<Long> idSerializer = new SerializerLong();
 	private GroupSerializer<PersistentWorkItem> workItemSerializer = new PersistentWorkItemSerializer();
@@ -24,9 +26,10 @@ public class MapDBPersistenceContext implements PersistenceContext {
 	private Atomic.Long nextSessionId;
 	private Atomic.Long nextWorkItemId;
 
-	public MapDBPersistenceContext(DB db, TransactionManager txm) {
+	public MapDBPersistenceContext(DB db, TransactionManager txm, ObjectStoringStrategy[] strategies) {
 		this.db = db;
 		this.txm = txm;
+		this.strategies = strategies;
 		this.workItemMap = db.treeMap(new MapDBWorkItem().getMapKey(), idSerializer, workItemSerializer).createOrOpen();
 		this.sessionMap = db.treeMap(new MapDBSession().getMapKey(), idSerializer, sessionSerializer).createOrOpen();
 		this.nextSessionId = db.atomicLong("sessionId").createOrOpen();

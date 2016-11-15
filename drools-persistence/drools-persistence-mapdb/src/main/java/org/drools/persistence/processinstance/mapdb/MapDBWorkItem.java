@@ -14,6 +14,7 @@ import org.drools.core.process.instance.WorkItem;
 import org.drools.persistence.PersistentWorkItem;
 import org.drools.persistence.mapdb.MapDBTransformable;
 import org.drools.persistence.mapdb.PersistentWorkItemSerializer;
+import org.kie.api.persistence.ObjectStoringStrategy;
 import org.kie.api.runtime.Environment;
 import org.mapdb.BTreeMap;
 import org.mapdb.DB;
@@ -109,7 +110,7 @@ public class MapDBWorkItem implements PersistentWorkItem, MapDBTransformable {
 	}
 
 	@Override
-	public boolean updateOnMap(DB db) {
+	public boolean updateOnMap(DB db, ObjectStoringStrategy[] strategies) {
 		BTreeMap<Long, PersistentWorkItem> map = db.treeMap(getMapKey(), Serializer.LONG, new PersistentWorkItemSerializer()).open();
 		map.put(id, this);
 		return true;

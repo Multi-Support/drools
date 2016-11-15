@@ -23,6 +23,7 @@ import org.drools.persistence.TransactionManager;
 import org.drools.persistence.TransactionManagerHelper;
 import org.drools.persistence.TransactionSynchronization;
 import org.drools.persistence.Transformable;
+import org.kie.api.persistence.ObjectStoringStrategy;
 import org.kie.api.runtime.Environment;
 import org.mapdb.DB;
 
@@ -45,12 +46,13 @@ public class TriggerUpdateTransactionSynchronization implements TransactionSynch
         }
 
         DB db = (DB) environment.get(MapDBEnvironmentName.DB_OBJECT);
+        ObjectStoringStrategy[] strategies = (ObjectStoringStrategy[]) environment.get(MapDBEnvironmentName.OBJECT_STORING_STRATEGIES);
         for (Transformable transformable : toBeUpdated) {
             if (transformable != null) {
             	MapDBTransformable trans = (MapDBTransformable) transformable;
             	trans.setEnvironment(environment);
                 trans.transform();
-                trans.updateOnMap(db);
+                trans.updateOnMap(db, strategies);
             }
         }
     }

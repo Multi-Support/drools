@@ -2,10 +2,10 @@ package org.drools.persistence.mapdb;
 
 import org.drools.persistence.PersistentSession;
 import org.drools.persistence.SessionMarshallingHelper;
+import org.kie.api.persistence.ObjectStoringStrategy;
 import org.kie.api.runtime.Environment;
-import org.mapdb.BTreeMap;
+import org.kie.api.runtime.KieSession;
 import org.mapdb.DB;
-import org.mapdb.Serializer;
 
 public class MapDBSession implements PersistentSession, MapDBTransformable {
 	
@@ -21,6 +21,13 @@ public class MapDBSession implements PersistentSession, MapDBTransformable {
 	@Override
 	public void setEnvironment(Environment env) {
 		//do nothing
+	}
+	
+	public KieSession getKieSession() {
+		if (marshallingHelper != null) {
+			return marshallingHelper.getObject();
+		}
+		return null;
 	}
 
 	@Override
@@ -52,12 +59,8 @@ public class MapDBSession implements PersistentSession, MapDBTransformable {
 	}
 
 	@Override
-	public boolean updateOnMap(DB db) {
-		BTreeMap<Long, PersistentSession> map = db.treeMap(
-				getMapKey(), 
-				Serializer.LONG, 
-				new PersistentSessionSerializer()).open();
-		map.put(id, this);
+	public boolean updateOnMap(DB db, ObjectStoringStrategy[] strategies) {
+		new SessionIndexService(db, strategies).update(this);
 		return true;
 	}
 }
