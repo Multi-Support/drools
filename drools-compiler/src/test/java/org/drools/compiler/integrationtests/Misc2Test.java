@@ -8718,6 +8718,82 @@ public class Misc2Test extends CommonTestMethodBase {
     }
 
     @Test
+    public void testReorderRightMemoryOnIndexedField() {
+        // DROOLS-1174
+        String rule = "import " + Misc2Test.Seat.class.getCanonicalName() + ";\n"
+                + "\n"
+                + "rule twoSameJobTypePerTable when\n"
+                + "    $job: String()\n"
+                + "    $table : Long()\n"
+                + "    not (\n"
+                + "        Seat( guestJob == $job, table == $table, $leftId : id )\n"
+                + "        and Seat( guestJob == $job, table == $table, id > $leftId )\n"
+                + "    )\n"
+                + "then\n"
+                + "end";
+
+        KieSession kieSession = new KieHelper().addContent(rule, ResourceType.DRL).build().newKieSession();
+
+        String doctor = "D";
+        String politician = "P";
+        Long table1 = 1L;
+        Long table2 = 2L;
+        Seat seat0 = new Seat(0, politician, table2);
+        Seat seat1 = new Seat(1, politician, null);
+        Seat seat2 = new Seat(2, politician, table2);
+        Seat seat3 = new Seat(3, doctor, table1);
+        Seat seat4 = new Seat(4, doctor, table1);
+
+        kieSession.insert(seat0);
+        FactHandle fh1 = kieSession.insert(seat1);
+        FactHandle fh2 = kieSession.insert(seat2);
+        FactHandle fh3 = kieSession.insert(seat3);
+        kieSession.insert(seat4);
+        kieSession.insert(politician);
+        kieSession.insert(doctor);
+        kieSession.insert(table1);
+        kieSession.insert(table2);
+
+        assertEquals(2, kieSession.fireAllRules());
+
+        kieSession.update(fh3, seat3); // no change but the update is necessary to reproduce the bug
+        kieSession.update(fh2, seat2.setTable(null));
+        kieSession.update(fh1, seat1.setTable(table2));
+
+        assertEquals(0, kieSession.fireAllRules());
+    }
+
+    public static class Seat {
+
+        private final int id;
+        private final String guestJob;
+        private Long table;
+
+        public Seat(int id, String guestJob, Long table) {
+            this.id = id;
+            this.guestJob = guestJob;
+            this.table = table;
+        }
+
+        public String getGuestJob() {
+            return guestJob;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public Long getTable() {
+            return table;
+        }
+
+        public Seat setTable(Long table) {
+            this.table = table;
+            return this;
+        }
+    }
+
+    @Test
     public void testChildLeftTuplesIterationOnLeftUpdate() {
         // DROOLS-1186
         String drl =
@@ -8805,6 +8881,101 @@ public class Misc2Test extends CommonTestMethodBase {
         @Override
         public String toString() {
             return "Shift " + employee + " from " + start + " to " + end;
+        }
+    }
+
+    @Test
+    public void test1187() {
+        // DROOLS-1187
+        String drl = "import " + Misc2Test.Shift1187.class.getCanonicalName() + "\n"
+                + "rule insertEmployeeConsecutiveWeekendAssignmentStart when\n"
+                + "    Shift1187(\n"
+                + "        weekend == true,\n"
+                + "        $employee : employee, employee != null,\n"
+                + "        $week : week\n"
+                + "    )\n"
+                + "    // The first working weekend has no working weekend before it\n"
+                + "    not Shift1187(\n"
+                + "        weekend == true,\n"
+                + "        employee == $employee,\n"
+                + "        week == ($week - 1)\n"
+                + "    )\n"
+                + "then\n"
+                + "end";
+
+        KieSession kieSession = new KieHelper().addContent(drl, ResourceType.DRL).build().newKieSession();
+
+        Shift1187 shift1 = new Shift1187(0, 4);
+        Shift1187 shift2 = new Shift1187(1, 5);
+        Shift1187 shift3 = new Shift1187(2, 6);
+        Shift1187 shift4 = new Shift1187(2, 6);
+        Shift1187 shift5 = new Shift1187(2, 0);
+        Shift1187 shift6 = new Shift1187(3, 0);
+
+        String employeeA = "Sarah";
+        String employeeB = "Susan";
+        String employeeC = "Fred";
+
+        shift4.setEmployee(employeeB);
+        shift5.setEmployee(employeeA);
+
+        FactHandle fh1 = kieSession.insert(shift1);
+        FactHandle fh2 = kieSession.insert(shift2);
+        FactHandle fh3 = kieSession.insert(shift3);
+        FactHandle fh4 = kieSession.insert(shift4);
+        FactHandle fh5 = kieSession.insert(shift5);
+        FactHandle fh6 = kieSession.insert(shift6);
+
+        assertEquals(2, kieSession.fireAllRules());
+
+        kieSession.update(fh6, shift6.setEmployee(employeeA));
+        kieSession.update(fh1, shift1.setEmployee(employeeA));
+        kieSession.update(fh2, shift2.setEmployee(employeeC));
+
+        assertEquals(1, kieSession.fireAllRules());
+
+        kieSession.update(fh4, shift4.setEmployee(employeeB));
+        kieSession.update(fh3, shift3.setEmployee(employeeB));
+        kieSession.update(fh5, shift5.setEmployee(employeeB));
+        kieSession.update(fh2, shift2.setEmployee(employeeA));
+        kieSession.update(fh4, shift4.setEmployee(employeeA));
+
+        kieSession.fireAllRules();
+    }
+
+    public class Shift1187 {
+
+        private final int week;
+        private final int dayOfWeek;
+        private String employee;
+
+        public Shift1187(int week, int dayOfWeek) {
+            this.dayOfWeek = dayOfWeek;
+            this.week = week;
+        }
+
+        public String getEmployee() {
+            return employee;
+        }
+
+        public Shift1187 setEmployee(String employee) {
+            this.employee = employee;
+            return this;
+        }
+
+        public int getWeek() {
+            return week;
+        }
+
+        public boolean isWeekend() {
+            if (employee == null) {
+                return false;
+            }
+            return dayOfWeek == 6 || dayOfWeek == 0 || dayOfWeek == 5 && hasWeekendOnFriday(employee);
+        }
+
+        private boolean hasWeekendOnFriday(String employee) {
+            return employee.startsWith("F");
         }
     }
 
