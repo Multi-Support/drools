@@ -46,6 +46,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
+import static org.drools.core.util.DroolsAssert.assertEnumerationSize;
 import static org.drools.core.util.DroolsAssert.assertUrlEnumerationContainsMatch;
 import static org.junit.Assert.*;
 import static org.kie.scanner.MavenRepository.getMavenRepository;
@@ -284,6 +285,42 @@ public class KieModuleMavenTest extends AbstractKieCiTest {
         assertNotNull("Default kbase was not found", kbaseModel);
         String kbaseName = kbaseModel.getName();
         assertEquals("KBase1", kbaseName);
+    }
+
+    @Test
+    public void testResourceTypeInKieModuleReleaseId() throws Exception {
+        final KieServices ks = new KieServicesImpl() {
+
+            @Override
+            public KieRepository getRepository() {
+                return new KieRepositoryImpl(); // override repository to not store the artifact on deploy to trigger load from maven repo
+            }
+        };
+
+        ReleaseId releaseId = ks.newReleaseId("org.kie", "maven-test.drl", "1.0-SNAPSHOT");
+        InternalKieModule kJar1 = createKieJar(ks, releaseId, true, "rule1", "rule2");
+        String pomText = getPom(releaseId);
+        File pomFile = new File(System.getProperty("java.io.tmpdir"), MavenRepository.toFileName(releaseId, null) + ".pom");
+        try {
+            FileOutputStream fos = new FileOutputStream(pomFile);
+            fos.write(pomText.getBytes());
+            fos.flush();
+            fos.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        MavenRepository.getMavenRepository().installArtifact(releaseId, kJar1, pomFile);
+
+        KieContainer kieContainer = ks.newKieContainer(releaseId);
+        KieBase kieBase = kieContainer.getKieBase("KBase1");
+        assertNotNull(kieBase);
+
+        assertEquals("There must be one package built", 1, kieBase.getKiePackages().size());
+
+        ClassLoader classLoader = kieContainer.getClassLoader();
+
+        assertEnumerationSize(1, classLoader.getResources("KBase1/org/test"));
+        assertEnumerationSize(1, classLoader.getResources("META-INF/maven/org.kie/maven-test.drl"));
     }
 
     public static String generatePomXml(ReleaseId releaseId, ReleaseId... dependencies) {

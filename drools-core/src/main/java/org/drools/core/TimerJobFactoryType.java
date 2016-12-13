@@ -83,7 +83,7 @@ public abstract class TimerJobFactoryType {
 
     private final String string;
     
-    TimerJobFactoryType( String string ) {
+    public TimerJobFactoryType( String string ) {
         this.string = string;
     }
 

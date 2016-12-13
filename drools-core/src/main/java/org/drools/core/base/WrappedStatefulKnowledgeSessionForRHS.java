@@ -58,7 +58,6 @@ import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.ViewChangedEventListener;
 import org.kie.api.time.SessionClock;
 import org.kie.internal.KnowledgeBase;
-import org.kie.internal.command.Context;
 import org.kie.internal.event.rule.RuleEventListener;
 import org.kie.internal.process.CorrelationKey;
 import org.kie.internal.runtime.KnowledgeRuntime;
@@ -170,10 +169,6 @@ public final class WrappedStatefulKnowledgeSessionForRHS
 
 	public <T> T execute(Command<T> command) {
 		return delegate.execute(command);
-	}
-
-	public <T> T execute(Context context, Command<T> command) {
-		return delegate.execute(context, command);
 	}
 
 	public void initInitialFact(InternalKnowledgeBase kBase, MarshallerReaderContext context) {
@@ -460,10 +455,6 @@ public final class WrappedStatefulKnowledgeSessionForRHS
 
 	public <T, K> T don(Activation activation, K core, Class<T> trait, boolean b, Mode[] modes) {
 		return delegate.don(activation, core, trait, b, modes);
-	}
-
-	public void executeQueuedActionsForRete() {
-		delegate.executeQueuedActionsForRete();
 	}
 
 	public void queueWorkingMemoryAction(WorkingMemoryAction action) {
