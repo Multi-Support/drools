@@ -19,18 +19,17 @@ import org.kie.api.runtime.ExecutableRunner;
 import org.kie.api.command.Command;
 import org.kie.api.runtime.KieSession;
 
-import javax.persistence.EntityManager;
 import javax.transaction.Synchronization;
 
 public interface PersistenceContextManager {
     
     /**
-     * @return a {@link PersistenceContext} instance containing the Application Scoped {@link EntityManager}.
+     * @return a {@link PersistenceContext} instance containing the Application Scoped EntityManager or persistence helper class.
      */
     PersistenceContext getApplicationScopedPersistenceContext();
     
     /**
-     * @return a {@link PersistenceContext} instance containing the Command Scoped {@link EntityManager}.
+     * @return a {@link PersistenceContext} instance containing the Command Scoped EntityManager or persistence helper class.
      */
     PersistenceContext getCommandScopedPersistenceContext();
    
@@ -39,7 +38,7 @@ public interface PersistenceContextManager {
      * when the given {@link ExecutableRunner} instance is responsible for handling persistence.
      * See the {@link PersistableRunner} class.
      * </p>
-     * The first responsibility of this method is to make sure that the Command Scoped {@link EntityManager} (CSEM) joins
+     * The first responsibility of this method is to make sure that the Command Scoped EntityManager (CSEM) joins
      * the ongoing transaction.
      * </p>
      * When the CSEM is internally managed, this method is also responsible for creating a new CSEM for use during execution
@@ -50,7 +49,7 @@ public interface PersistenceContextManager {
     /**
      * This method should only called in the {@link Synchronization#afterCompletion(int)} method.
      * </p>
-     * It is responsible for cleaning up the Command Scoped {@link EntityManager} (CSEM) instance, but <i>only</i> when 
+     * It is responsible for cleaning up the Command Scoped EntityManager (CSEM) instance, but <i>only</i> when 
      * the CSEM is an <i>internal</i> one, and not one supplied (and managed) by the user. 
      * </p>
      * If the CSEM is (internally) managed, then this method will take the necessary actions in order to make sure that a 

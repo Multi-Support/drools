@@ -21,20 +21,20 @@ import java.util.LinkedList;
 import java.util.Set;
 
 import org.drools.core.SessionConfiguration;
-import org.drools.core.command.CommandService;
-import org.drools.core.command.Interceptor;
 import org.drools.core.command.impl.AbstractInterceptor;
 import org.drools.core.command.impl.ContextImpl;
-import org.drools.core.command.impl.DefaultCommandService;
 import org.drools.core.command.impl.RegistryContext;
-import org.drools.core.command.runtime.DisposeCommand;
-import org.drools.core.command.runtime.UnpersistableCommand;
 import org.drools.core.common.EndOperationListener;
 import org.drools.core.common.InternalKnowledgeRuntime;
 import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.fluent.impl.InternalExecutable;
+import org.drools.core.fluent.impl.PseudoClockRunner;
+import org.drools.core.impl.InternalKnowledgeBase;
+import org.drools.core.impl.StatefulKnowledgeSessionImpl;
 import org.drools.core.marshalling.impl.KieSessionInitializer;
 import org.drools.core.marshalling.impl.MarshallingConfigurationImpl;
 import org.drools.core.process.instance.WorkItem;
+import org.drools.core.runtime.ChainableRunner;
 import org.drools.core.runtime.process.InternalProcessRuntime;
 import org.drools.core.time.impl.CommandServiceTimerJobFactoryManager;
 import org.drools.core.time.impl.TimerJobFactoryManager;
@@ -51,14 +51,13 @@ import org.drools.persistence.TransactionManagerHelper;
 import org.drools.persistence.processinstance.InternalWorkItemManager;
 import org.drools.persistence.processinstance.mapdb.MapDBWorkItem;
 import org.kie.api.KieBase;
-import org.kie.api.command.BatchExecutionCommand;
-import org.kie.api.command.Command;
 import org.kie.api.marshalling.ObjectMarshallingStrategy;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.EnvironmentName;
+import org.kie.api.runtime.Executable;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
-import org.kie.internal.command.Context;
+import org.kie.api.runtime.RequestContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,14 +73,14 @@ public class MapDBSessionCommandService
     private KieSession                 ksession;
     private Environment                env;
     private RegistryContext    kContext;
-    private CommandService             commandService;
+    private ChainableRunner            runner;
 
     private TransactionManager         txm;
     private PersistenceContextManager  jpm;
 
     private volatile boolean           doRollback;
 
-    private LinkedList<Interceptor> interceptors = new LinkedList<Interceptor>();
+    private LinkedList<ChainableRunner> interceptors = new LinkedList<ChainableRunner>();
 
 
     public void checkEnvironment(Environment env) {
@@ -158,11 +157,11 @@ public class MapDBSessionCommandService
                                                           this.ksession,
                                                           null );*/
 
-        this.commandService = new TransactionInterceptor(kContext);
+        this.runner = new TransactionInterceptor();
 
         TimerJobFactoryManager timerJobFactoryManager = ((InternalKnowledgeRuntime) ksession ).getTimerService().getTimerJobFactoryManager();
         if (timerJobFactoryManager instanceof CommandServiceTimerJobFactoryManager) {
-           ( (CommandServiceTimerJobFactoryManager) timerJobFactoryManager ).setCommandService( this );
+           ( (CommandServiceTimerJobFactoryManager) timerJobFactoryManager ).setRunner( this );
         }
     }
     
@@ -263,16 +262,24 @@ public class MapDBSessionCommandService
         	this.kContext = new ContextImpl().register( KieSession.class, this.ksession );
         }
 
-        this.commandService = new TransactionInterceptor(kContext);
+        this.runner = new TransactionInterceptor();
         // apply interceptors
-        Iterator<Interceptor> iterator = this.interceptors.descendingIterator();
+        Iterator<ChainableRunner> iterator = this.interceptors.descendingIterator();
         while (iterator.hasNext()) {
             addInterceptor(iterator.next(), false);
         }
-
+        
+        initKieSessionMBeans(this.ksession);
     }
 
-    public class MapDBSessionInitializer implements KieSessionInitializer {
+    private void initKieSessionMBeans(KieSession ksession) {
+        InternalKnowledgeBase internalKnowledgeBase = (InternalKnowledgeBase) ksession.getKieBase();
+        StatefulKnowledgeSessionImpl statefulKnowledgeSessionImpl = (StatefulKnowledgeSessionImpl) ksession;
+        // DROOLS-1322
+        statefulKnowledgeSessionImpl.initMBeans(internalKnowledgeBase.getContainerId(), internalKnowledgeBase.getId(), "persistent");
+	}
+
+	public class MapDBSessionInitializer implements KieSessionInitializer {
 
         private final MapDBSessionCommandService commandService;
 
@@ -287,7 +294,7 @@ public class MapDBSessionCommandService
             //  they will retrieve a null commandService (instead of a reference to this) and fail.
             TimerJobFactoryManager timerJobFactoryManager = ((InternalKnowledgeRuntime) ksession ).getTimerService().getTimerJobFactoryManager();
             if (timerJobFactoryManager instanceof CommandServiceTimerJobFactoryManager) {
-                ( (CommandServiceTimerJobFactoryManager) timerJobFactoryManager ).setCommandService( commandService );
+                ( (CommandServiceTimerJobFactoryManager) timerJobFactoryManager ).setRunner( commandService );
             }
         }
     }
@@ -380,16 +387,18 @@ public class MapDBSessionCommandService
         }
     }
 
-    public Context getContext() {
-        return this.kContext;
+    public RequestContext createContext() {
+        return RequestContext.create(ksession.getClass().getClassLoader()).with( this.ksession );
     }
 
-    public CommandService getCommandService() {
-        return this.commandService;
+    public ChainableRunner getChainableRunner() {
+        return runner;
     }
 
-    public synchronized <T> T execute(Command<T> command) {
-        return commandService.execute(command);
+    @Override
+    public synchronized RequestContext execute( Executable executable, RequestContext ctx ) {
+        runner.execute( executable, ctx );
+        return ctx;
     }
 
     private void rollbackTransaction(Exception t1, boolean transactionOwner) {
@@ -538,13 +547,13 @@ public class MapDBSessionCommandService
         }
     }
 
-    public void addInterceptor(Interceptor interceptor) {
+    public void addInterceptor(ChainableRunner interceptor) {
         addInterceptor(interceptor, true);
     }
 
-    protected void addInterceptor(Interceptor interceptor, boolean store) {
-        interceptor.setNext( this.commandService );
-        this.commandService = interceptor;
+    protected void addInterceptor( ChainableRunner interceptor, boolean store ) {
+        interceptor.setNext( this.runner );
+        this.runner = interceptor;
         if (store) {
             // put it on a stack so it can be recreated upon rollback
             this.interceptors.push(interceptor);
@@ -557,20 +566,17 @@ public class MapDBSessionCommandService
 
     private class TransactionInterceptor extends AbstractInterceptor {
 
-        public TransactionInterceptor(Context context) {
-            setNext(new DefaultCommandService(context));
+        public TransactionInterceptor() {
+        	setNext(new PseudoClockRunner());
         }
 
         @Override
-        public <T> T execute(Command<T> command) {
-            if (command instanceof UnpersistableCommand) {
-                throw new UnsupportedOperationException("Command " + command + " cannot be issued on a persisted session");
-            }
+        public RequestContext execute( Executable executable, RequestContext context ) {
 
-            if (command instanceof DisposeCommand) {
-                T result = executeNext( command );
+            if ( !( (InternalExecutable) executable ).canRunInTransaction() ) {
+                executeNext(executable, context);
                 jpm.dispose();
-                return result;
+                return context;
             }
 
             // Open the entity manager before the transaction begins.
@@ -601,19 +607,10 @@ public class MapDBSessionCommandService
                     }
                 }
 
-                T result = null;
-                if( command instanceof BatchExecutionCommand) {
-                    // Batch execution requires the extra logic in
-                    //  StatefulSessionKnowledgeImpl.execute(Context,Command);
-                    result = ksession.execute(command);
-                }
-                else {
-                    logger.trace("Executing " + command.getClass().getSimpleName());
-                    result = executeNext(command);
-                }
+                executeNext(executable, context);
+
                 registerUpdateSync();
                 txm.commit( transactionOwner );
-                return result;
 
             } catch ( RuntimeException re ) {
                 rollbackTransaction( re,
@@ -625,6 +622,7 @@ public class MapDBSessionCommandService
                 throw new RuntimeException( "Wrapped exception see cause",
                         t1 );
             }
+            return context;
         }
     }
 

@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.drools.core.command.CommandService;
 import org.drools.core.command.impl.ExecutableCommand;
 import org.drools.core.time.InternalSchedulerService;
 import org.drools.core.time.Job;
@@ -16,16 +15,17 @@ import org.drools.core.time.Trigger;
 import org.drools.core.time.impl.DefaultTimerJobInstance;
 import org.drools.core.time.impl.JDKTimerService;
 import org.drools.core.time.impl.TimerJobInstance;
-import org.kie.internal.command.Context;
+import org.kie.api.runtime.Context;
+import org.kie.api.runtime.ExecutableRunner;
 
 public class MapDBJDKTimerService extends JDKTimerService {
 
-    private CommandService              commandService;
+    private ExecutableRunner              runner;
 
     private Map<Long, TimerJobInstance> timerInstances;
 
-    public void setCommandService(CommandService commandService) {
-        this.commandService = commandService;
+    public void setCommandService(ExecutableRunner runner) {
+        this.runner = runner;
     }
 
     public MapDBJDKTimerService() {
@@ -78,7 +78,7 @@ public class MapDBJDKTimerService extends JDKTimerService {
         public Void call() throws Exception {
             try { 
                 MapDBCallableJobCommand command = new MapDBCallableJobCommand( this );
-                commandService.execute( command );
+                runner.execute( command );
             } catch(Exception e ) { 
                 logger.error("Unable to execute job!", e);
                 throw e;

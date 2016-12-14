@@ -20,7 +20,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
 import org.drools.core.SessionConfiguration;
-import org.drools.core.command.CommandService;
 import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
 import org.drools.core.process.instance.WorkItemManagerFactory;
 import org.drools.core.time.TimerService;
@@ -30,6 +29,7 @@ import org.kie.api.Service;
 import org.kie.api.persistence.jpa.KieStoreServices;
 import org.kie.api.runtime.CommandExecutor;
 import org.kie.api.runtime.Environment;
+import org.kie.api.runtime.ExecutableRunner;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.TimerJobFactoryOption;
 import org.kie.internal.runtime.StatefulKnowledgeSession;
@@ -75,7 +75,7 @@ public class KnowledgeStoreServiceImpl
         }
 
         
-        CommandService commandService = (CommandService) buildCommandService( kbase, mergeConfig( configuration ), environment );
+        ExecutableRunner<?> runner = (ExecutableRunner<?>) buildCommandService( kbase, mergeConfig( configuration ), environment );
 /*        if (commandService instanceof MapDBSessionCommandService) {
         	((MapDBSessionCommandService) commandService).
         		addInterceptor(new ManualPersistInterceptor((MapDBSessionCommandService) commandService));
@@ -92,7 +92,7 @@ public class KnowledgeStoreServiceImpl
         	}
         }*/
         
-        return new CommandBasedStatefulKnowledgeSession( commandService );
+        return new CommandBasedStatefulKnowledgeSession( runner );
     }
 
     public StatefulKnowledgeSession loadKieSession(int id,
@@ -107,7 +107,7 @@ public class KnowledgeStoreServiceImpl
             throw new IllegalArgumentException( "Environment cannot be null" );
         }
 
-        CommandService commandService = (CommandService) buildCommandService( new Long(id), kbase, mergeConfig( configuration ), environment );
+        ExecutableRunner<?> runner = (ExecutableRunner<?>) buildCommandService( new Long(id), kbase, mergeConfig( configuration ), environment );
 /*        if (commandService instanceof SingleSessionCommandService) {
         	((SingleSessionCommandService) commandService).
         		addInterceptor(new ManualPersistInterceptor((SingleSessionCommandService) commandService));
@@ -124,7 +124,7 @@ public class KnowledgeStoreServiceImpl
         	}
         }*/
         
-        return new CommandBasedStatefulKnowledgeSession( commandService );
+        return new CommandBasedStatefulKnowledgeSession( runner );
     }
 
     public StatefulKnowledgeSession loadKieSession(Long id,
@@ -139,7 +139,7 @@ public class KnowledgeStoreServiceImpl
             throw new IllegalArgumentException( "Environment cannot be null" );
         }
 
-        CommandService commandService = (CommandService) buildCommandService( id, kbase, mergeConfig( configuration ), environment );
+        ExecutableRunner<?> runner = (ExecutableRunner<?>) buildCommandService( id, kbase, mergeConfig( configuration ), environment );
 /*        if (commandService instanceof SingleSessionCommandService) {
             ((SingleSessionCommandService) commandService).
                     addInterceptor(new ManualPersistInterceptor((SingleSessionCommandService) commandService));
@@ -156,7 +156,7 @@ public class KnowledgeStoreServiceImpl
             }
         }*/
 
-        return new CommandBasedStatefulKnowledgeSession( commandService );
+        return new CommandBasedStatefulKnowledgeSession( runner );
     }
 
     private CommandExecutor buildCommandService(Long sessionId,
@@ -223,7 +223,7 @@ public class KnowledgeStoreServiceImpl
 
     public long getStatefulKnowledgeSessionId(StatefulKnowledgeSession ksession) {
         if ( ksession instanceof CommandBasedStatefulKnowledgeSession ) {
-            MapDBSessionCommandService commandService = (MapDBSessionCommandService) ((CommandBasedStatefulKnowledgeSession) ksession).getCommandService();
+            MapDBSessionCommandService commandService = (MapDBSessionCommandService) ((CommandBasedStatefulKnowledgeSession) ksession).getRunner();
             return commandService.getSessionId();
         }
         throw new IllegalArgumentException( "StatefulKnowledgeSession must be an a CommandBasedStatefulKnowledgeSession" );

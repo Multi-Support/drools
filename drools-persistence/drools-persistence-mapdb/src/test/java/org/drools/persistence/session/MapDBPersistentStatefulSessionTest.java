@@ -27,18 +27,15 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.naming.InitialContext;
-import javax.transaction.Status;
-import javax.transaction.Transaction;
 import javax.transaction.UserTransaction;
 
 import org.drools.compiler.Address;
 import org.drools.compiler.Person;
 import org.drools.core.SessionConfiguration;
-import org.drools.core.command.CommandService;
-import org.drools.core.command.Interceptor;
 import org.drools.core.command.impl.CommandBasedStatefulKnowledgeSession;
 import org.drools.core.command.impl.FireAllRulesInterceptor;
 import org.drools.core.command.impl.LoggingInterceptor;
+import org.drools.core.runtime.ChainableRunner;
 import org.drools.persistence.mapdb.MapDBSessionCommandService;
 import org.drools.persistence.mapdb.util.MapDBPersistenceUtil;
 import org.junit.After;
@@ -51,7 +48,6 @@ import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
 import org.kie.api.builder.Message.Level;
 import org.kie.api.runtime.Environment;
-import org.kie.api.runtime.EnvironmentName;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.rule.FactHandle;
@@ -275,7 +271,7 @@ public class MapDBPersistentStatefulSessionTest {
 
         KieSession ksession = KieServices.Factory.get().getStoreServices().newKieSession( kbase, null, env );
         MapDBSessionCommandService sscs = (MapDBSessionCommandService)
-            ((CommandBasedStatefulKnowledgeSession) ksession).getCommandService();
+            ((CommandBasedStatefulKnowledgeSession) ksession).getRunner();
         sscs.addInterceptor(new LoggingInterceptor());
         sscs.addInterceptor(new FireAllRulesInterceptor());
         sscs.addInterceptor(new LoggingInterceptor());
@@ -312,17 +308,17 @@ public class MapDBPersistentStatefulSessionTest {
 
         KieSession ksession = KieServices.Factory.get().getStoreServices().newKieSession( kbase, null, env );
         MapDBSessionCommandService sscs = (MapDBSessionCommandService)
-                ((CommandBasedStatefulKnowledgeSession) ksession).getCommandService();
+                ((CommandBasedStatefulKnowledgeSession) ksession).getRunner();
         sscs.addInterceptor(new LoggingInterceptor());
         sscs.addInterceptor(new FireAllRulesInterceptor());
         sscs.addInterceptor(new LoggingInterceptor());
 
-        CommandService internalCommandService = sscs.getCommandService();
+        ChainableRunner internalCommandService = sscs.getChainableRunner();
 
         assertEquals(LoggingInterceptor.class, internalCommandService.getClass());
-        internalCommandService = ((Interceptor) internalCommandService).getNext();
+        internalCommandService = (ChainableRunner) internalCommandService.getNext();
         assertEquals(FireAllRulesInterceptor.class, internalCommandService.getClass());
-        internalCommandService = ((Interceptor) internalCommandService).getNext();
+        internalCommandService = (ChainableRunner) internalCommandService.getNext();
         assertEquals(LoggingInterceptor.class, internalCommandService.getClass());
 
         UserTransaction ut = InitialContext.doLookup("java:comp/UserTransaction");
@@ -334,12 +330,12 @@ public class MapDBPersistentStatefulSessionTest {
 
         ksession.insert( 3 );
 
-        internalCommandService = sscs.getCommandService();
+        internalCommandService = sscs.getChainableRunner();
 
         assertEquals(LoggingInterceptor.class, internalCommandService.getClass());
-        internalCommandService = ((Interceptor) internalCommandService).getNext();
+        internalCommandService = (ChainableRunner) internalCommandService.getNext();
         assertEquals(FireAllRulesInterceptor.class, internalCommandService.getClass());
-        internalCommandService = ((Interceptor) internalCommandService).getNext();
+        internalCommandService = (ChainableRunner) internalCommandService.getNext();
         assertEquals(LoggingInterceptor.class, internalCommandService.getClass());
 
     }

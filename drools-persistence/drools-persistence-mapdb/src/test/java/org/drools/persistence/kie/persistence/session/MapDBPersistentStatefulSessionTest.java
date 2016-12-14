@@ -277,7 +277,7 @@ public class MapDBPersistentStatefulSessionTest {
 
         KieSession ksession = ks.getStoreServices().newKieSession( kbase, null, env );
         MapDBSessionCommandService mapdbscs = (MapDBSessionCommandService)
-            ((CommandBasedStatefulKnowledgeSession) ksession).getCommandService();
+            ((CommandBasedStatefulKnowledgeSession) ksession).getRunner();
         mapdbscs.addInterceptor(new LoggingInterceptor());
         mapdbscs.addInterceptor(new FireAllRulesInterceptor());
         mapdbscs.addInterceptor(new LoggingInterceptor());

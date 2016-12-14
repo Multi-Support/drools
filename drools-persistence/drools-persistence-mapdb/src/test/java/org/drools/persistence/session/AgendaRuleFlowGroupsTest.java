@@ -38,9 +38,9 @@ import org.kie.api.builder.Message;
 import org.kie.api.builder.Message.Level;
 import org.kie.api.builder.Results;
 import org.kie.api.io.ResourceType;
+import org.kie.api.runtime.Context;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.KieSession;
-import org.kie.internal.command.Context;
 import org.kie.internal.io.ResourceFactory;
 import org.kie.internal.utils.KieHelper;
 
@@ -143,7 +143,7 @@ public class AgendaRuleFlowGroupsTest {
     private KieSession stripSession(KieSession ksession) {
         if (ksession instanceof CommandBasedStatefulKnowledgeSession) {
             return ((RegistryContext)((CommandBasedStatefulKnowledgeSession) ksession).
-                    getCommandService().getContext()).lookup( KieSession.class );
+                    getRunner().createContext()).lookup( KieSession.class );
         }
         
         return ksession;

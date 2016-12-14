@@ -18,6 +18,7 @@ package org.drools.persistence.timer.integrationtests;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -32,20 +33,25 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.kie.api.KieBase;
-import org.kie.api.KieBaseConfiguration;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
 import org.kie.api.builder.Message.Level;
 import org.kie.api.definition.type.FactType;
 import org.kie.api.io.Resource;
+import org.kie.api.io.ResourceType;
 import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.conf.ClockTypeOption;
 import org.kie.api.time.SessionClock;
+import org.kie.internal.KnowledgeBase;
 import org.kie.internal.KnowledgeBaseFactory;
-import org.kie.internal.builder.conf.RuleEngineOption;
+import org.kie.internal.builder.KnowledgeBuilder;
+import org.kie.internal.builder.KnowledgeBuilderError;
+import org.kie.internal.builder.KnowledgeBuilderErrors;
+import org.kie.internal.builder.KnowledgeBuilderFactory;
+import org.kie.internal.definition.KnowledgePackage;
 import org.kie.internal.io.ResourceFactory;
 
 public class TimerAndCalendarTest {
@@ -245,9 +251,7 @@ public class TimerAndCalendarTest {
     public void testTimerWithRemovingRule() throws Exception {
         // DROOLS-576
         // Only reproducible with RETEOO
-        KieBaseConfiguration kconf = KieServices.Factory.get().newKieBaseConfiguration();
-        kconf.setOption( RuleEngineOption.RETEOO );
-        KieBase kbase1  = KnowledgeBaseFactory.newKnowledgeBase(kconf);
+        KnowledgeBase kbase1  = KnowledgeBaseFactory.newKnowledgeBase();
 
         String str1 = "package org.test; " +
                 "import java.util.*; " +
@@ -263,15 +267,10 @@ public class TimerAndCalendarTest {
                 "end\n";
 
         Resource resource1 = ResourceFactory.newByteArrayResource(str1.getBytes());
-        KieFileSystem kfs = KieServices.Factory.get().newKieFileSystem();
-        kfs.write("src/main/resources/r1.drl", resource1);
-        KieBuilder kbuilder = KieServices.Factory.get().newKieBuilder(kfs);
-        kbuilder.buildAll();
-        if (kbuilder.getResults().hasMessages(Level.ERROR)) {
-        	fail (kbuilder.getResults().toString());
-        }
-        kbase1 = KieServices.Factory.get().newKieContainer(kbuilder.getKieModule().getReleaseId()).getKieBase();
-
+        Collection<KnowledgePackage> kpackages1 = buildKnowledgePackage( resource1,
+                ResourceType.DRL );
+        kbase1.addKnowledgePackages( kpackages1 );
+        
         KieSession ksession1 = KieServices.Factory.get().getStoreServices().newKieSession(kbase1, null,
                 MapDBPersistenceUtil.createEnvironment(context));
         long ksessionId = ksession1.getIdentifier();
@@ -289,7 +288,7 @@ public class TimerAndCalendarTest {
         Thread.sleep(5000);
 
         // A new kbase without the timer's activated rule
-        KieBase kbase2  = KnowledgeBaseFactory.newKnowledgeBase(kconf);
+        KnowledgeBase kbase2  = KnowledgeBaseFactory.newKnowledgeBase();
 
         String str2 = "package org.test; " +
                 "import java.util.*; " +
@@ -304,14 +303,9 @@ public class TimerAndCalendarTest {
                 "end\n";
 
         Resource resource2 = ResourceFactory.newByteArrayResource(str2.getBytes());
-        kfs = KieServices.Factory.get().newKieFileSystem();
-        kfs.write("src/main/resources/r1.drl", resource2);
-        kbuilder = KieServices.Factory.get().newKieBuilder(kfs);
-        kbuilder.buildAll();
-        if (kbuilder.getResults().hasMessages(Level.ERROR)) {
-        	fail (kbuilder.getResults().toString());
-        }
-        kbase2 = KieServices.Factory.get().newKieContainer(kbuilder.getKieModule().getReleaseId()).getKieBase();
+        Collection<KnowledgePackage> kpackages2 = buildKnowledgePackage( resource2,
+                                                                        ResourceType.DRL );
+        kbase2.addKnowledgePackages( kpackages2 );
         
         KieSession ksession2 = KieServices.Factory.get().getStoreServices().loadKieSession(ksessionId, kbase2, null,
                 MapDBPersistenceUtil.createEnvironment(context));
@@ -323,6 +317,21 @@ public class TimerAndCalendarTest {
         ksession2.dispose();
 
         Assert.assertEquals(0, list.size());
+    }
+
+    private Collection<KnowledgePackage> buildKnowledgePackage(Resource resource,
+            ResourceType resourceType) {
+    	KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+    	kbuilder.add( resource, resourceType );
+    	KnowledgeBuilderErrors errors = kbuilder.getErrors();
+    	if ( errors != null && errors.size() > 0 ) {
+    		for ( KnowledgeBuilderError error : errors ) {
+    			System.err.println( "Error: " + error.getMessage() );
+    		}
+    		Assert.fail( "KnowledgeBase did not build" );
+    	}
+    	Collection<KnowledgePackage> packages = kbuilder.getKnowledgePackages();
+    	return packages;
     }
 
     private KieSession createSession(KieBase kbase) {

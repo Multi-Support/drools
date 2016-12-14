@@ -1,6 +1,5 @@
 package org.drools.persistence.mapdb;
 
-import org.drools.core.command.CommandService;
 import org.drools.core.time.InternalSchedulerService;
 import org.drools.core.time.Job;
 import org.drools.core.time.JobContext;
@@ -10,19 +9,20 @@ import org.drools.core.time.Trigger;
 import org.drools.core.time.impl.CommandServiceTimerJobFactoryManager;
 import org.drools.core.time.impl.ThreadSafeTrackableTimeJobFactoryManager;
 import org.drools.core.time.impl.TimerJobInstance;
+import org.kie.api.runtime.ExecutableRunner;
 
 public class MapDBTimeJobFactoryManager 
 		extends ThreadSafeTrackableTimeJobFactoryManager
 		implements CommandServiceTimerJobFactoryManager{
 
-    private CommandService commandService;
+    private ExecutableRunner runner;
 
-    public void setCommandService(CommandService commandService) {
-        this.commandService = commandService;
+    public void setRunner(ExecutableRunner runner) {
+        this.runner = runner;
     }
 
-    public CommandService getCommandService() {
-        return commandService;
+    public ExecutableRunner getRunner() {
+        return runner;
     }
 
     public TimerJobInstance createTimerJobInstance(Job job,
