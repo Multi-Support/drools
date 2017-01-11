@@ -18,6 +18,7 @@ package org.drools.decisiontable.parser.xls;
 
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.CellValue;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
@@ -167,13 +168,20 @@ public class ExcelParser
                 }
 
                 switch ( cell.getCellType() ) {
+                    case Cell.CELL_TYPE_BOOLEAN:
+                        newCell(listeners,
+                                i,
+                                cellNum,
+                                cell.getBooleanCellValue() ? "true" : "false",
+                                mergedColStart);
+                        break;
                     case Cell.CELL_TYPE_FORMULA:
                         String cellValue = null;
                         try {
                             newCell(listeners,
                                     i,
                                     cellNum,
-                                    formatter.formatCellValue(cell, formulaEvaluator),
+                                    getFormulaValue( formatter, formulaEvaluator, cell ),
                                     mergedColStart);
                         } catch (RuntimeException e) {
                             // This is thrown if an external link cannot be resolved, so try the cached value
@@ -210,6 +218,13 @@ public class ExcelParser
             }
         }
         finishSheet( listeners );
+    }
+
+    private String getFormulaValue( DataFormatter formatter, FormulaEvaluator formulaEvaluator, Cell cell ) {
+        if ( formulaEvaluator.evaluate( cell ).getCellTypeEnum() == CellType.BOOLEAN ) {
+            return cell.getBooleanCellValue() ? "true" : "false";
+        }
+        return formatter.formatCellValue(cell, formulaEvaluator);
     }
 
     private String tryToReadCachedValue( Cell cell ) {
