@@ -344,6 +344,33 @@ public class ProjectClassLoader extends ClassLoader {
         nonExistingClasses.addAll(other.nonExistingClasses);
     }
 
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ProjectClassLoader)) return false;
+
+        ProjectClassLoader that = (ProjectClassLoader) o;
+
+        if (droolsClassLoader != null ? !droolsClassLoader.equals(
+                that.droolsClassLoader) : that.droolsClassLoader != null)
+            return false;
+        if (typesClassLoader != null ? !typesClassLoader.equals(
+                that.typesClassLoader) : that.typesClassLoader != null)
+            return false;
+        if (resourceProvider != null ? !resourceProvider.equals(
+                that.resourceProvider) : that.resourceProvider != null)
+            return false;
+        return getParent() != null ? getParent().equals(
+                that.getParent()) : that.getParent() == null;
+    }
+
+    @Override public int hashCode() {
+        int result = droolsClassLoader != null ? droolsClassLoader.hashCode() : 0;
+        result = 31 * result + (typesClassLoader != null ? typesClassLoader.hashCode() : 0);
+        result = 31 * result + (resourceProvider != null ? resourceProvider.hashCode() : 0);
+        result = 31 * result + (getParent() != null ? getParent().hashCode() : 0);
+        return result;
+    }
+
     private InternalTypesClassLoader makeClassLoader() {
         return ClassUtils.isAndroid() ?
                 (InternalTypesClassLoader) ClassUtils.instantiateObject(
