@@ -16,8 +16,6 @@
 
 package org.drools.core.base.accumulators;
 
-import org.kie.api.runtime.rule.AccumulateFunction;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -27,7 +25,7 @@ import java.io.Serializable;
 /**
  * An implementation of an accumulator capable of calculating average values
  */
-public class AverageAccumulateFunction implements AccumulateFunction {
+public class AverageAccumulateFunction extends AbstractAccumulateFunction<AverageAccumulateFunction.AverageData> {
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 
@@ -58,15 +56,14 @@ public class AverageAccumulateFunction implements AccumulateFunction {
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#createContext()
      */
-    public Serializable createContext() {
+    public AverageData createContext() {
         return new AverageData();
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#init(java.lang.Object)
      */
-    public void init(Serializable context) {
-        AverageData data = (AverageData) context;
+    public void init(AverageData data) {
         data.count = 0;
         data.total = 0;
     }
@@ -74,10 +71,9 @@ public class AverageAccumulateFunction implements AccumulateFunction {
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#accumulate(java.lang.Object, java.lang.Object)
      */
-    public void accumulate(Serializable context,
+    public void accumulate(AverageData data,
                            Object value) {
         if (value != null) {
-            AverageData data = (AverageData) context;
             data.count++;
             data.total += ( (Number) value ).doubleValue();
         }
@@ -86,10 +82,9 @@ public class AverageAccumulateFunction implements AccumulateFunction {
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#reverse(java.lang.Object, java.lang.Object)
      */
-    public void reverse(Serializable context,
+    public void reverse(AverageData data,
                         Object value) {
         if (value != null) {
-            AverageData data = (AverageData) context;
             data.count--;
             data.total -= ( (Number) value ).doubleValue();
         }
@@ -98,8 +93,7 @@ public class AverageAccumulateFunction implements AccumulateFunction {
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#getResult(java.lang.Object)
      */
-    public Object getResult(Serializable context) {
-        AverageData data = (AverageData) context;
+    public Object getResult(AverageData data) {
         return new Double( data.count == 0 ? 0 : data.total / data.count );
     }
 
@@ -116,5 +110,4 @@ public class AverageAccumulateFunction implements AccumulateFunction {
     public Class< ? > getResultType() {
         return Double.class;
     }
-
 }

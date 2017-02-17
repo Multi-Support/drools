@@ -2606,7 +2606,7 @@ public class AccumulateTest extends CommonTestMethodBase {
         assertThat( (Integer) ac.getValue().getMatch().getDeclarationValue( "$v" ), is( Integer.valueOf( 1 ) ) );
     }
 
-    public static class TestFunction implements AccumulateFunction {
+    public static class TestFunction implements AccumulateFunction<Serializable> {
         @Override
         public void writeExternal( ObjectOutput out ) throws IOException {
         }
@@ -3263,5 +3263,33 @@ public class AccumulateTest extends CommonTestMethodBase {
         public int compareTo( PersonWithBoxedAge other ) {
             return age.compareTo( other.getAge() );
         }
+    }
+
+    @Test
+    public void testTypedMaxOnAccumulate() {
+        // DROOLS-1175
+        String drl1 =
+                "global java.util.List list;\n" +
+                "rule R when\n" +
+                "  $i : Integer()\n" +
+                "  $result : Integer() from accumulate ( $s : String(), max( $s.length() ) )\n" +
+                "then\n" +
+                "  list.add($result);\n" +
+                "end";
+
+        KieSession ksession = new KieHelper().addContent( drl1, ResourceType.DRL )
+                                             .build()
+                                             .newKieSession();
+
+        List<Integer> list = new ArrayList<Integer>();
+        ksession.setGlobal( "list", list );
+
+        ksession.insert( 1 );
+        ksession.insert( "hello" );
+        ksession.insert( "hi" );
+        ksession.fireAllRules();
+
+        assertEquals( 1, list.size() );
+        assertEquals( "hello".length(), (int)list.get(0) );
     }
 }

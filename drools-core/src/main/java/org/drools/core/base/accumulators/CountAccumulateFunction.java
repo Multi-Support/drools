@@ -16,8 +16,6 @@
 
 package org.drools.core.base.accumulators;
 
-import org.kie.api.runtime.rule.AccumulateFunction;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -27,7 +25,7 @@ import java.io.Serializable;
 /**
  * An implementation of an accumulator capable of counting occurences
  */
-public class CountAccumulateFunction implements AccumulateFunction {
+public class CountAccumulateFunction extends AbstractAccumulateFunction<CountAccumulateFunction.CountData> {
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 
@@ -55,41 +53,37 @@ public class CountAccumulateFunction implements AccumulateFunction {
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#createContext()
      */
-    public Serializable createContext() {
+    public CountData createContext() {
         return new CountData();
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#init(java.lang.Object)
      */
-    public void init(Serializable context) {
-        CountData data = (CountData) context;
+    public void init(CountData data) {
         data.count = 0;
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#accumulate(java.lang.Object, java.lang.Object)
      */
-    public void accumulate(Serializable context,
+    public void accumulate(CountData data,
                            Object value) {
-        CountData data = (CountData) context;
         data.count++;
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#reverse(java.lang.Object, java.lang.Object)
      */
-    public void reverse(Serializable context,
+    public void reverse(CountData data,
                         Object value) {
-        CountData data = (CountData) context;
         data.count--;
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#getResult(java.lang.Object)
      */
-    public Object getResult(Serializable context) {
-        CountData data = (CountData) context;
+    public Object getResult(CountData data) {
         return new Long( data.count );
     }
 
@@ -106,5 +100,4 @@ public class CountAccumulateFunction implements AccumulateFunction {
     public Class< ? > getResultType() {
         return Long.class;
     }
-
 }

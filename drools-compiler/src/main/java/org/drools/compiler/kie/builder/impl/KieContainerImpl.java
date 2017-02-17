@@ -15,6 +15,20 @@
 
 package org.drools.compiler.kie.builder.impl;
 
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.management.ObjectName;
+
 import org.drools.compiler.builder.impl.KnowledgeBuilderImpl;
 import org.drools.compiler.compiler.PackageBuilderErrors;
 import org.drools.compiler.kie.util.ChangeSetBuilder;
@@ -23,8 +37,12 @@ import org.drools.compiler.kproject.models.KieBaseModelImpl;
 import org.drools.compiler.kproject.models.KieSessionModelImpl;
 import org.drools.compiler.management.KieContainerMonitor;
 import org.drools.core.RuleBaseConfiguration;
+import org.drools.core.base.ClassObjectType;
+import org.drools.core.common.ClassAwareObjectStore;
 import org.drools.core.common.InternalWorkingMemory;
+import org.drools.core.common.InternalWorkingMemoryEntryPoint;
 import org.drools.core.common.ProjectClassLoader;
+import org.drools.core.definitions.InternalKnowledgePackage;
 import org.drools.core.definitions.impl.KnowledgePackageImpl;
 import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.impl.InternalKnowledgeBase;
@@ -32,6 +50,7 @@ import org.drools.core.impl.StatefulKnowledgeSessionImpl;
 import org.drools.core.impl.StatelessKnowledgeSessionImpl;
 import org.drools.core.management.DroolsManagementAgent;
 import org.drools.core.management.DroolsManagementAgent.CBSKey;
+import org.drools.core.reteoo.EntryPointNode;
 import org.kie.api.KieBase;
 import org.kie.api.KieBaseConfiguration;
 import org.kie.api.KieServices;
@@ -53,6 +72,7 @@ import org.kie.api.runtime.Environment;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.KieSessionConfiguration;
 import org.kie.api.runtime.StatelessKieSession;
+import org.kie.api.runtime.rule.EntryPoint;
 import org.kie.internal.KnowledgeBaseFactory;
 import org.kie.internal.builder.ChangeType;
 import org.kie.internal.builder.CompositeKnowledgeBuilder;
@@ -65,23 +85,9 @@ import org.kie.internal.definition.KnowledgePackage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.management.ObjectName;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-
 import static org.drools.compiler.kie.builder.impl.AbstractKieModule.buildKnowledgePackages;
 import static org.drools.compiler.kie.builder.impl.KieBuilderImpl.filterFileInKBase;
-import static org.drools.compiler.kie.util.CDIHelper.wireListnersAndWIHs;
+import static org.drools.compiler.kie.util.InjectionHelper.wireListnersAndWIHs;
 import static org.drools.core.util.ClassUtils.convertResourceToClassName;
 import static org.drools.core.util.Drools.isJndiAvailable;
 
@@ -229,9 +235,9 @@ public class KieContainerImpl
         ChangeSetBuilder csb = new ChangeSetBuilder();
         final KieJarChangeSet cs = csb.build( currentKM, newKM );
 
-        final List<String> modifiedClasses = getModifiedClasses(cs);
-        final boolean modifyingUsedClass = isModifyingUsedClass( modifiedClasses, getClassLoader() );
-        reinitModifiedClasses( newKM, modifiedClasses, getClassLoader() );
+        List<String> modifiedClassNames = getModifiedClasses(cs);
+        final boolean modifyingUsedClass = isModifyingUsedClass( modifiedClassNames, getClassLoader() );
+        final List<Class<?>> modifiedClasses = reinitModifiedClasses( newKM, modifiedClassNames, getClassLoader() );
         final List<String> unchangedResources = getUnchangedResources( newKM, cs );
 
         Map<String, KieBaseModel> currentKieBaseModels = ((KieModuleKieProject) kProject).updateToModule( newKM );
@@ -283,7 +289,7 @@ public class KieContainerImpl
     }
 
     private void updateKBase( InternalKnowledgeBase kBase, InternalKieModule currentKM, ReleaseId newReleaseId,
-                              InternalKieModule newKM, KieJarChangeSet cs, List<String> modifiedClasses, boolean modifyingUsedClass,
+                              InternalKieModule newKM, KieJarChangeSet cs, List<Class<?>> modifiedClasses, boolean modifyingUsedClass,
                               List<String> unchangedResources, ResultsImpl results, KieBaseModel newKieBaseModel, KieBaseModel currentKieBaseModel ) {
         KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder( kBase, newKM.getBuilderConfiguration( newKieBaseModel ) );
         KnowledgeBuilderImpl pkgbuilder = (KnowledgeBuilderImpl)kbuilder;
@@ -301,6 +307,13 @@ public class KieContainerImpl
             }
         }
 
+        // remove all ObjectTypeNodes for the modified classes
+        if (modifyingUsedClass) {
+            for (Class<?> cls : modifiedClasses ) {
+                clearInstancesOfModifiedClass( kBase, cls );
+            }
+        }
+
         if ( shouldRebuild ) {
             // readd unchanged dsl files to the kbuilder
             for (String dslFile : unchangedResources) {
@@ -315,6 +328,25 @@ public class KieContainerImpl
 
         for ( InternalWorkingMemory wm : kBase.getWorkingMemories() ) {
             wm.notifyWaitOnRest();
+        }
+    }
+
+    private void clearInstancesOfModifiedClass( InternalKnowledgeBase kBase, Class<?> cls ) {
+        // remove all ObjectTypeNodes for the modified classes
+        ClassObjectType objectType = new ClassObjectType( cls );
+        for ( EntryPointNode epn : kBase.getRete().getEntryPointNodes().values() ) {
+            epn.removeObjectType( objectType );
+        }
+
+        // remove all instance of the old class from the object stores
+        for (InternalWorkingMemory wm : kBase.getWorkingMemories()) {
+            for (EntryPoint ep : wm.getEntryPoints()) {
+                InternalWorkingMemoryEntryPoint wmEp = (InternalWorkingMemoryEntryPoint) wm.getWorkingMemoryEntryPoint( ep.getEntryPointId() );
+                ClassAwareObjectStore store = ( (ClassAwareObjectStore) wmEp.getObjectStore() );
+                if ( store.clearClassStore( cls ) ) {
+                    log.warn( "Class " + cls.getName() + " has been modified and therfore its old instances will no longer match" );
+                }
+            }
         }
     }
 
@@ -340,10 +372,16 @@ public class KieContainerImpl
     }
 
     private boolean applyResourceChanges(InternalKieModule currentKM, InternalKieModule newKM, KieJarChangeSet cs,
-                                         List<String> modifiedClasses, KieBase kBase, KieBaseModel kieBaseModel,
+                                         List<Class<?>> modifiedClasses, KieBase kBase, KieBaseModel kieBaseModel,
                                          KnowledgeBuilderImpl pkgbuilder, CompositeKnowledgeBuilder ckbuilder, boolean modifyingUsedClass) {
         boolean shouldRebuild = modifyingUsedClass;
         if (modifyingUsedClass) {
+            // invalidate accessors for old class
+            for (Class<?> cls : modifiedClasses) {
+                ( (InternalKnowledgePackage) kBase.getKiePackage( cls.getPackage().getName() ) )
+                        .getClassFieldAccessorStore().removeClass( cls );
+            }
+
             // there are modified classes used by this kbase, so it has to be completely updated
             updateAllResources(currentKM, newKM, kieBaseModel, pkgbuilder, ckbuilder);
         } else {
@@ -397,7 +435,7 @@ public class KieContainerImpl
     private int updateResourcesIncrementally(InternalKieModule currentKM,
                                              InternalKieModule newKM,
                                              KieJarChangeSet cs,
-                                             List<String> modifiedClasses,
+                                             List<Class<?>> modifiedClasses,
                                              KieBase kBase,
                                              KieBaseModel kieBaseModel,
                                              KnowledgeBuilderImpl kbuilder,
@@ -461,7 +499,8 @@ public class KieContainerImpl
         }
     }
 
-    private void reinitModifiedClasses( InternalKieModule newKM, List<String> modifiedClasses, ClassLoader classLoader ) {
+    private List<Class<?>> reinitModifiedClasses( InternalKieModule newKM, List<String> modifiedClasses, ClassLoader classLoader ) {
+        List<Class<?>> classes = new ArrayList<Class<?>>();
         if (!modifiedClasses.isEmpty()) {
             if ( classLoader instanceof ProjectClassLoader ) {
                 ProjectClassLoader projectClassLoader = (ProjectClassLoader) classLoader;
@@ -470,9 +509,11 @@ public class KieContainerImpl
                     String className = convertResourceToClassName( resourceName );
                     byte[] bytes = newKM.getBytes(resourceName);
                     Class<?> clazz = projectClassLoader.defineClass(className, resourceName, bytes);
+                    classes.add(clazz);
                 }
             }
         }
+        return classes;
     }
 
     private List<String> getModifiedClasses(KieJarChangeSet cs) {

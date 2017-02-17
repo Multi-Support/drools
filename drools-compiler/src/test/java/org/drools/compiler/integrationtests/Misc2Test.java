@@ -16,6 +16,33 @@
 
 package org.drools.compiler.integrationtests;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Serializable;
+import java.io.StringReader;
+import java.math.BigDecimal;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.drools.compiler.Address;
 import org.drools.compiler.Cheese;
 import org.drools.compiler.CommonTestMethodBase;
@@ -114,34 +141,8 @@ import org.kie.internal.utils.KieHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.Serializable;
-import java.io.StringReader;
-import java.math.BigDecimal;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import static java.util.Arrays.asList;
+import static org.drools.compiler.TestUtil.assertDrlHasCompilationError;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -7308,17 +7309,6 @@ public class Misc2Test extends CommonTestMethodBase {
         assertDrlHasCompilationError( str, 1 );
     }
 
-    private void assertDrlHasCompilationError( String str, int errorNr ) {
-        KieServices ks = KieServices.Factory.get();
-        KieFileSystem kfs = ks.newKieFileSystem().write( "src/main/resources/r1.drl", str );
-        Results results = ks.newKieBuilder( kfs ).buildAll().getResults();
-        if ( errorNr > 0 ) {
-            assertEquals( errorNr, results.getMessages().size() );
-        } else {
-            assertTrue( results.getMessages().size() > 0 );
-        }
-    }
-
     @Test
     public void testDuplicateDeclarationInAccumulate1() {
         // DROOLS-727
@@ -8937,6 +8927,8 @@ public class Misc2Test extends CommonTestMethodBase {
 
         kieSession.fireAllRules();
     }
+    
+   
 
     public class Shift1187 {
 
@@ -9066,5 +9058,30 @@ public class Misc2Test extends CommonTestMethodBase {
         assertFalse( list.contains( "LessThanCompare:null" ) );
         assertFalse( list.contains( "GreaterThanCompare:5" ) );
         assertFalse( list.contains( "GreaterThanCompare:null" ) );
+    }
+    
+    @Test
+    public void testUnderscoreDoubleMultiplicationCastedToInt() {
+        // DROOLS-1420
+        String str =
+                "import org.drools.compiler.Cheese\n" +
+                "global java.util.List list\n" +
+                "rule R when\n" +
+                "  Cheese( $p : price)\n" +
+                "then\n" +
+                "  int b = (int) ($p * 1_000.0);\n" +
+                "  list.add(\"\" + b);" +
+                "end\n";
+
+        KieSession ksession = new KieHelper().addContent(str, ResourceType.DRL).build().newKieSession();
+
+        List<String> list = new ArrayList<String>();
+        ksession.setGlobal( "list", list );
+
+        ksession.insert( new Cheese( "gauda", 42 ) );
+        ksession.fireAllRules();
+
+        assertEquals(1, list.size());
+        assertEquals("42000", list.get(0));
     }
 }

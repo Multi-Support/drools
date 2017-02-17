@@ -25,8 +25,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.kie.api.runtime.rule.AccumulateFunction;
-
 /**
  * <p>An implementation of an accumulator capable of collecting lists of values.
  * This is similar to the "collect" CE, but allows us to collect any value, not
@@ -47,9 +45,7 @@ import org.kie.api.runtime.rule.AccumulateFunction;
  * <p>The list accepts duplications and the order of the elements in the list is not
  * guaranteed.</p>
  */
-public class CollectListAccumulateFunction
-    implements
-    AccumulateFunction {
+public class CollectListAccumulateFunction extends AbstractAccumulateFunction<CollectListAccumulateFunction.CollectListData> {
 
     public void readExternal(ObjectInput in) throws IOException,
                                             ClassNotFoundException {
@@ -83,41 +79,37 @@ public class CollectListAccumulateFunction
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#createContext()
      */
-    public Serializable createContext() {
+    public CollectListData createContext() {
         return new CollectListData();
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#init(java.lang.Object)
      */
-    public void init(Serializable context) throws Exception {
-        CollectListData data = (CollectListData) context;
+    public void init(CollectListData data) {
         data.list.clear();
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#accumulate(java.lang.Object, java.lang.Object)
      */
-    public void accumulate(Serializable context,
+    public void accumulate(CollectListData data,
                            Object value) {
-        CollectListData data = (CollectListData) context;
         data.list.add( value );
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#reverse(java.lang.Object, java.lang.Object)
      */
-    public void reverse(Serializable context,
-                        Object value) throws Exception {
-        CollectListData data = (CollectListData) context;
+    public void reverse(CollectListData data,
+                        Object value) {
         data.list.remove( value );
     }
 
     /* (non-Javadoc)
      * @see org.kie.base.accumulators.AccumulateFunction#getResult(java.lang.Object)
      */
-    public Object getResult(Serializable context) throws Exception {
-        CollectListData data = (CollectListData) context;
+    public Object getResult(CollectListData data) {
         return Collections.unmodifiableList( data.list );
     }
 

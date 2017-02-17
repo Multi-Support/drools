@@ -16,8 +16,6 @@
 
 package org.drools.core.base.accumulators;
 
-import org.kie.api.runtime.rule.AccumulateFunction;
-
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -27,7 +25,7 @@ import java.io.Serializable;
 /**
  * An implementation of an accumulator capable of calculating maximum values
  */
-public class MaxAccumulateFunction implements AccumulateFunction {
+public class MaxAccumulateFunction extends AbstractAccumulateFunction<MaxAccumulateFunction.MaxData> {
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 
@@ -51,31 +49,28 @@ public class MaxAccumulateFunction implements AccumulateFunction {
         }
     }
 
-    public Serializable createContext() {
+    public MaxData createContext() {
         return new MaxData();
     }
 
-    public void init(Serializable context) {
-        MaxData data = (MaxData) context;
+    public void init(MaxData data) {
         data.max = null;
     }
 
-    public void accumulate(Serializable context,
+    public void accumulate(MaxData data,
                            Object value) {
         if (value != null) {
-            MaxData data = (MaxData) context;
             data.max = data.max == null || data.max.compareTo( value ) < 0 ?
                        (Comparable) value :
                        data.max;
         }
     }
 
-    public void reverse(Serializable context,
+    public void reverse(MaxData data,
                         Object value) {
     }
 
-    public Object getResult(Serializable context) {
-        MaxData data = (MaxData) context;
+    public Object getResult(MaxData data) {
         return data.max;
     }
 

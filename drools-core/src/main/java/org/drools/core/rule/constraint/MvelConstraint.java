@@ -15,6 +15,20 @@
 
 package org.drools.core.rule.constraint;
 
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.drools.core.base.ClassFieldReader;
 import org.drools.core.base.DroolsQuery;
 import org.drools.core.base.EvaluatorWrapper;
@@ -56,20 +70,6 @@ import org.mvel2.compiler.CompiledExpression;
 import org.mvel2.compiler.ExecutableStatement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.drools.core.reteoo.PropertySpecificUtil.*;
 import static org.drools.core.util.ClassUtils.areNullSafeEquals;
@@ -561,13 +561,13 @@ public class MvelConstraint extends MutableTypeConstraint implements IndexableCo
 
     public int hashCode() {
         if (isAlphaHashable()) {
-            return 29 * getLeftForEqualExpression().hashCode() + 31 * fieldValue.hashCode();
+            return 29 * getLeftInExpression(IndexUtil.ConstraintType.EQUAL).hashCode() + 31 * fieldValue.hashCode();
         }
         return expression.hashCode();
     }
 
-    private String getLeftForEqualExpression() {
-        return expression.substring(0, expression.indexOf("==")).trim();
+    private String getLeftInExpression(IndexUtil.ConstraintType constraint) {
+        return expression.substring(0, expression.indexOf(constraint.getOperator())).trim();
     }
 
     private boolean isAlphaHashable() {
@@ -584,7 +584,7 @@ public class MvelConstraint extends MutableTypeConstraint implements IndexableCo
         MvelConstraint other = (MvelConstraint) object;
         if (isAlphaHashable()) {
             if ( !other.isAlphaHashable() ||
-                    !getLeftForEqualExpression().equals(other.getLeftForEqualExpression()) ||
+                    !getLeftInExpression(IndexUtil.ConstraintType.EQUAL).equals(other.getLeftInExpression(IndexUtil.ConstraintType.EQUAL)) ||
                     !fieldValue.equals(other.fieldValue) ) {
                 return false;
             }
@@ -617,12 +617,19 @@ public class MvelConstraint extends MutableTypeConstraint implements IndexableCo
         Map<String, Object> thisImports = ((MVELDialectRuntimeData) kbase.getPackage( thisPkg ).getDialectRuntimeRegistry().getDialectData("mvel")).getImports();
         Map<String, Object> otherImports = ((MVELDialectRuntimeData) kbase.getPackage( otherPkg ).getDialectRuntimeRegistry().getDialectData("mvel")).getImports();
 
+        if (fieldValue != null && constraintType.getOperator() != null) {
+            return equalsExpressionTokensInBothImports(getLeftInExpression(constraintType), thisImports, otherImports);
+        } else {
+            return equalsExpressionTokensInBothImports(expression, thisImports, otherImports);
+        }
+    }
+    
+    private boolean equalsExpressionTokensInBothImports(String expression, Map<String, Object> thisImports, Map<String, Object> otherImports) {
         for (String token : splitExpression(expression)) {
             if ( !areNullSafeEquals(thisImports.get(token), otherImports.get(token)) ) {
                 return false;
             }
         }
-
         return true;
     }
 

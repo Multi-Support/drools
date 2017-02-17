@@ -16,10 +16,34 @@
 
 package org.drools.core.impl;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import org.drools.core.RuleBaseConfiguration;
 import org.drools.core.SessionConfiguration;
 import org.drools.core.base.ClassFieldAccessorCache;
 import org.drools.core.base.ClassObjectType;
+import org.drools.core.common.BaseNode;
 import org.drools.core.common.DefaultFactHandle;
 import org.drools.core.common.DroolsObjectInput;
 import org.drools.core.common.DroolsObjectInputStream;
@@ -36,16 +60,20 @@ import org.drools.core.event.KieBaseEventSupport;
 import org.drools.core.factmodel.ClassDefinition;
 import org.drools.core.factmodel.traits.TraitRegistry;
 import org.drools.core.management.DroolsManagementAgent;
+import org.drools.core.reteoo.BetaNode;
 import org.drools.core.reteoo.CompositePartitionAwareObjectSinkAdapter;
 import org.drools.core.reteoo.EntryPointNode;
 import org.drools.core.reteoo.KieComponentFactory;
 import org.drools.core.reteoo.LeftTupleNode;
 import org.drools.core.reteoo.LeftTupleSource;
 import org.drools.core.reteoo.ObjectSinkPropagator;
+import org.drools.core.reteoo.ObjectSource;
 import org.drools.core.reteoo.ObjectTypeNode;
 import org.drools.core.reteoo.Rete;
 import org.drools.core.reteoo.ReteooBuilder;
+import org.drools.core.reteoo.RightInputAdapterNode;
 import org.drools.core.reteoo.SegmentMemory;
+import org.drools.core.reteoo.Sink;
 import org.drools.core.reteoo.builder.BuildContext;
 import org.drools.core.reteoo.builder.NodeFactory;
 import org.drools.core.rule.DialectRuntimeRegistry;
@@ -88,29 +116,6 @@ import org.kie.internal.weaver.KieWeaverService;
 import org.kie.internal.weaver.KieWeavers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.drools.core.common.ProjectClassLoader.createProjectClassLoader;
 import static org.drools.core.util.BitMaskUtil.isSet;
@@ -494,6 +499,39 @@ public class KnowledgeBaseImpl
         }
 
         this.getConfiguration().getComponentFactory().getTraitFactory().setRuleBase(this);
+
+        rewireReteAfterDeserialization();
+    }
+
+    private void rewireReteAfterDeserialization() {
+        for (EntryPointNode entryPointNode : rete.getEntryPointNodes().values()) {
+            entryPointNode.setParentObjectSource( rete );
+            rewireNodeAfterDeserialization( entryPointNode );
+        }
+    }
+
+    private void rewireNodeAfterDeserialization(BaseNode node) {
+        Sink[] sinks = node.getSinks();
+        if (sinks != null) {
+            for (Sink sink : sinks) {
+                if (sink instanceof ObjectSource) {
+                    if (node instanceof ObjectSource) {
+                        ( (ObjectSource) sink ).setParentObjectSource( (ObjectSource) node );
+                    } else if (sink instanceof RightInputAdapterNode ) {
+                        ( (RightInputAdapterNode) sink ).setTupleSource( (LeftTupleSource) node );
+                    }
+                } else if (sink instanceof LeftTupleSource) {
+                    if (node instanceof LeftTupleSource) {
+                        ( (LeftTupleSource) sink ).setLeftTupleSource( (LeftTupleSource) node );
+                    } else if (sink instanceof BetaNode ) {
+                        ( (BetaNode) sink ).setRightInput( (ObjectSource) node );
+                    }
+                }
+                if (sink instanceof BaseNode) {
+                    rewireNodeAfterDeserialization((BaseNode)sink);
+                }
+            }
+        }
     }
 
     /**
@@ -545,7 +583,6 @@ public class KnowledgeBaseImpl
             out.writeObject(bytes.toByteArray());
         }
     }
-
 
     private Map<String, String> buildGlobalMapForSerialization() {
         Map<String, String> gl = new HashMap<String, String>();
@@ -1544,6 +1581,10 @@ public class KnowledgeBaseImpl
 
     public TypeDeclaration getExactTypeDeclaration( Class<?> clazz ) {
         return this.classTypeDeclaration.get( clazz.getName() );
+    }
+
+    public TypeDeclaration getOrCreateExactTypeDeclaration( Class<?> clazz ) {
+        return this.classTypeDeclaration.computeIfAbsent( clazz.getName(), c -> new TypeDeclaration( clazz ) );
     }
 
     public TypeDeclaration getTypeDeclaration( Class<?> clazz ) {
