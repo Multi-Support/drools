@@ -38,6 +38,7 @@ import org.drools.core.spi.ObjectType;
 import org.drools.core.util.bitmask.AllSetBitMask;
 import org.drools.core.util.bitmask.EmptyBitMask;
 import org.junit.Test;
+import org.kie.api.KieBase;
 import org.kie.api.definition.type.FactType;
 import org.kie.api.definition.type.Modifies;
 import org.kie.api.definition.type.PropertyReactive;
@@ -49,6 +50,7 @@ import org.kie.internal.builder.KnowledgeBuilderFactory;
 import org.kie.internal.builder.conf.PropertySpecificOption;
 import org.kie.internal.io.ResourceFactory;
 import org.kie.internal.runtime.StatefulKnowledgeSession;
+import org.kie.internal.utils.KieHelper;
 
 import static org.drools.core.reteoo.PropertySpecificUtil.calculateNegativeMask;
 import static org.drools.core.reteoo.PropertySpecificUtil.calculatePositiveMask;
@@ -60,7 +62,7 @@ public class PropertySpecificTest extends CommonTestMethodBase {
     }
 
     public static List<String> getSettableProperties( InternalKnowledgeBase kBase, ObjectTypeNode objectTypeNode ) {
-        return PropertySpecificUtil.getSettableProperties( kBase, getNodeClass( objectTypeNode ) );
+        return PropertySpecificUtil.getAccessibleProperties( kBase, getNodeClass( objectTypeNode ) );
     }
 
     public static Class<?> getNodeClass( ObjectTypeNode objectTypeNode ) {
@@ -97,8 +99,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
                       "   Person()\n" +
                       "then\n" +
                       "end\n";
-        KnowledgeBase kbase = loadKnowledgeBaseFromString( rule );
-        InternalWorkingMemory wm = ((InternalWorkingMemory)kbase.newStatefulKnowledgeSession());
+        
+        KieBase kbase = new KieHelper(PropertySpecificOption.ALLOWED).addContent(rule, ResourceType.DRL).build();
         
         ObjectTypeNode otn = getObjectTypeNode(kbase, "Person" );
         assertNotNull( otn );
@@ -119,8 +121,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
                       "   Person( name == 'bobba')\n" +
                       "then\n" +
                       "end\n";
-        KnowledgeBase kbase = loadKnowledgeBaseFromString( rule );
-        InternalWorkingMemory wm = ((InternalWorkingMemory)kbase.newStatefulKnowledgeSession());
+        
+        KieBase kbase = new KieHelper(PropertySpecificOption.ALLOWED).addContent(rule, ResourceType.DRL).build();
         
         ObjectTypeNode otn = getObjectTypeNode(kbase, "Person" );
         assertNotNull( otn );
@@ -148,8 +150,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
                       "   Cheese()\n" +
                       "then\n" +
                       "end\n";
-        KnowledgeBase kbase = loadKnowledgeBaseFromString( rule );
-        InternalWorkingMemory wm = ((InternalWorkingMemory)kbase.newStatefulKnowledgeSession());
+        
+        KieBase kbase = new KieHelper(PropertySpecificOption.ALLOWED).addContent(rule, ResourceType.DRL).build();
         
         ObjectTypeNode otn = getObjectTypeNode(kbase, "Cheese" );
         assertNotNull( otn );
@@ -171,8 +173,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
                       "   Cheese( type == 'brie' )\n" +
                       "then\n" +
                       "end\n";
-        KnowledgeBase kbase = loadKnowledgeBaseFromString( rule );
-        InternalWorkingMemory wm = ((InternalWorkingMemory)kbase.newStatefulKnowledgeSession());
+        
+        KieBase kbase = new KieHelper(PropertySpecificOption.ALLOWED).addContent(rule, ResourceType.DRL).build();
         
         ObjectTypeNode otn = getObjectTypeNode(kbase, "Cheese" );
         assertNotNull( otn );
@@ -223,8 +225,10 @@ public class PropertySpecificTest extends CommonTestMethodBase {
                       "   exists(eval(1==1))\n" +
                       "then\n" +
                       "end\n";
-        KnowledgeBase kbase = loadKnowledgeBaseFromString( rule );
-        InternalWorkingMemory wm = ((InternalWorkingMemory)kbase.newStatefulKnowledgeSession());
+
+        // assumption is this test was intended to be for the case
+        // property reactivity is NOT enabled by default.
+        KieBase kbase = new KieHelper(PropertySpecificOption.ALLOWED).addContent(rule, ResourceType.DRL).build();
         
         ObjectTypeNode otn = getObjectTypeNode(kbase, "Person" );
         assertNotNull( otn );
@@ -255,8 +259,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
                       "   Cheese( type == 'brie', price == 2.5 )\n" +
                       "then\n" +
                       "end\n";
-        KnowledgeBase kbase = loadKnowledgeBaseFromString( rule );
-        InternalWorkingMemory wm = ((InternalWorkingMemory)kbase.newStatefulKnowledgeSession());
+        
+        KieBase kbase = new KieHelper(PropertySpecificOption.ALLOWED).addContent(rule, ResourceType.DRL).build();
         
         ObjectTypeNode otn = getObjectTypeNode(kbase, "Cheese" );
         assertNotNull( otn );
@@ -610,10 +614,10 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         otn = getObjectTypeNode(kbase, "B" );
         alphaNode = ( AlphaNode ) otn.getObjectSinkPropagator().getSinks()[0];
         assertEquals( calculatePositiveMask(list("a"), sp), alphaNode.getDeclaredMask( ) );
-        assertEquals( calculatePositiveMask(list("a"), sp), alphaNode.getInferredMask());        
+        assertEquals( calculatePositiveMask(list("a", "b"), sp), alphaNode.getInferredMask());
         
-        assertEquals(  EmptyBitMask.get(), betaNode.getLeftDeclaredMask() );
-        assertEquals(  calculatePositiveMask(list("a"), sp), betaNode.getLeftInferredMask() );         
+        assertEquals(  calculatePositiveMask(list("b"), sp), betaNode.getLeftDeclaredMask() );
+        assertEquals(  calculatePositiveMask(list("a", "b"), sp), betaNode.getLeftInferredMask() );
     }    
     
     @Test
@@ -634,16 +638,16 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         BetaNode betaNode = ( BetaNode )  alphaNode.getObjectSinkPropagator().getSinks()[0];
         assertEquals( calculatePositiveMask(list("b","s"), sp), betaNode.getRightDeclaredMask() );
         assertEquals( calculatePositiveMask(list("a", "b", "s"), sp), betaNode.getRightInferredMask() );
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("a", "c"), sp), betaNode.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("a", "b", "c"), sp), betaNode.getLeftInferredMask() );
 
         otn = getObjectTypeNode(kbase, "B" );
         alphaNode = ( AlphaNode ) otn.getObjectSinkPropagator().getSinks()[0];
         assertEquals( calculatePositiveMask(list("a"), sp), alphaNode.getDeclaredMask( ) );
-        assertEquals( calculatePositiveMask(list("a", "c"), sp), alphaNode.getInferredMask());        
+        assertEquals( calculatePositiveMask(list("a", "b", "c"), sp), alphaNode.getInferredMask());
         
-        assertEquals( calculatePositiveMask(list( "c"), sp), betaNode.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("a", "c"), sp), betaNode.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list( "b", "c" ), sp), betaNode.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list( "a", "b", "c" ), sp), betaNode.getLeftInferredMask() );
     }
 
     @Test
@@ -669,10 +673,10 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         otn = getObjectTypeNode(kbase, "B" );
         alphaNode = ( AlphaNode ) otn.getObjectSinkPropagator().getSinks()[0];
         assertEquals( calculatePositiveMask(list("a"), sp), alphaNode.getDeclaredMask( ) );
-        assertEquals( calculatePositiveMask(list("a", "c"), sp), alphaNode.getInferredMask());
+        assertEquals( calculatePositiveMask(list("a", "b", "c"), sp), alphaNode.getInferredMask());
 
-        assertEquals( calculatePositiveMask(list( "c"), sp), betaNode.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list( "b", "c" ), sp), betaNode.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list( "b", "c" ), sp), betaNode.getLeftInferredMask() );
         assertEquals( calculateNegativeMask(list("!a"), sp), betaNode.getLeftNegativeMask() );
     }
 
@@ -701,8 +705,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         assertEquals( calculatePositiveMask(list("b"), sp), betaNode1.getRightDeclaredMask() );
         assertEquals( calculatePositiveMask(list("a", "s", "b"), sp), betaNode1.getRightInferredMask() );
 
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode1.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode1.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode1.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode1.getLeftInferredMask() );
         assertEquals( calculateNegativeMask(list("!a"), sp), betaNode1.getLeftNegativeMask() );
 
         // second share
@@ -714,8 +718,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         assertEquals( calculatePositiveMask(list("b"), sp), betaNode2.getRightDeclaredMask() );
         assertEquals(  calculatePositiveMask(list("a", "i", "b"), sp), betaNode2.getRightInferredMask() );
         
-        assertEquals( calculatePositiveMask(list("j"), sp), betaNode2.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("a", "j"), sp), betaNode2.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "j"), sp), betaNode2.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("a", "b", "j"), sp), betaNode2.getLeftInferredMask() );
         assertEquals( calculateNegativeMask(list("!i"), sp), betaNode2.getLeftNegativeMask() );
 
         // test rule removal        
@@ -729,8 +733,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         assertEquals(  calculatePositiveMask(list("b"), sp), betaNode2.getRightDeclaredMask() );
         assertEquals(  calculatePositiveMask(list("a", "i", "b"), sp), betaNode2.getRightInferredMask() );
         
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode1.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode1.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode1.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode1.getLeftInferredMask() );
         assertEquals( calculateNegativeMask(list("!a"), sp), betaNode1.getLeftNegativeMask() );
 
         // have to rebuild to remove r1
@@ -751,8 +755,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         assertEquals(  calculatePositiveMask(list("b"), sp), betaNode1.getRightDeclaredMask() );
         assertEquals(  calculatePositiveMask(list("a", "s", "b"), sp), betaNode1.getRightInferredMask() );   
         
-        assertEquals( calculatePositiveMask(list("j"), sp), betaNode2.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("a", "j"), sp), betaNode2.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "j"), sp), betaNode2.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("a", "b", "j"), sp), betaNode2.getLeftInferredMask() );
         assertEquals( calculateNegativeMask(list("!i"), sp), betaNode2.getLeftNegativeMask() );
     }
     
@@ -782,8 +786,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         assertEquals( calculatePositiveMask(list("a", "c"), sp), betaNode1.getRightInferredMask() );
         assertEquals( calculateNegativeMask(list("!b"), sp), betaNode1.getRightNegativeMask() );
 
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode1.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode1.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode1.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode1.getLeftInferredMask() );
         assertEquals( calculateNegativeMask(list("!a"), sp), betaNode1.getLeftNegativeMask() );
 
         // second share
@@ -798,8 +802,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         assertEquals( calculateNegativeMask(list("!a"), sp), betaNode2.getRightNegativeMask() );
 
         assertEquals( calculateNegativeMask(list("!a"), sp), betaNode1.getLeftNegativeMask() );
-        assertEquals( calculatePositiveMask(list("j"), sp), betaNode2.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("a", "j"), sp), betaNode2.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "j"), sp), betaNode2.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("a", "b", "j"), sp), betaNode2.getLeftInferredMask() );
         assertEquals( EmptyBitMask.get(), betaNode2.getLeftNegativeMask() );
 
         // test rule removal        
@@ -814,8 +818,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         assertEquals( calculatePositiveMask(list("i", "b", "s"), sp), betaNode2.getRightInferredMask() );
         assertEquals( calculateNegativeMask(list("!a"), sp), betaNode2.getRightNegativeMask() );
 
-        assertEquals( calculatePositiveMask(list("j"), sp), betaNode2.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("a", "j"), sp), betaNode2.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "j"), sp), betaNode2.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("a", "b", "j"), sp), betaNode2.getLeftInferredMask() );
         assertEquals( EmptyBitMask.get(), betaNode2.getLeftNegativeMask() );
 
         // have to rebuild to remove r1
@@ -837,8 +841,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         assertEquals(  calculatePositiveMask(list("a", "c"), sp), betaNode1.getRightInferredMask() );
         assertEquals( calculateNegativeMask(list("!b"), sp), betaNode1.getRightNegativeMask() );
 
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode1.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("c"), sp), betaNode1.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode1.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("b", "c"), sp), betaNode1.getLeftInferredMask() );
         assertEquals( calculateNegativeMask(list("!a"), sp), betaNode1.getLeftNegativeMask() );
     }
     
@@ -1221,7 +1225,12 @@ public class PropertySpecificTest extends CommonTestMethodBase {
                 "    modify($b) { setOn(true) }\n" +
                 "end\n";
 
-        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder();
+        // The compilation of the above ^ would turn error under the assumption Property Reactivity is NOT enabled by default. 
+        
+        KnowledgeBuilderConfiguration conf = KnowledgeBuilderFactory.newKnowledgeBuilderConfiguration();
+        conf.setOption(PropertySpecificOption.ALLOWED);
+        
+        KnowledgeBuilder kbuilder = KnowledgeBuilderFactory.newKnowledgeBuilder(conf);
         kbuilder.add( ResourceFactory.newByteArrayResource(rule.getBytes()), ResourceType.DRL );
         assertTrue(kbuilder.hasErrors());
     }
@@ -1836,7 +1845,7 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         return list;
     }
 
-    public ObjectTypeNode getObjectTypeNode(KnowledgeBase kbase, String nodeName) {
+    public ObjectTypeNode getObjectTypeNode(KieBase kbase, String nodeName) {
         List<ObjectTypeNode> nodes = ((KnowledgeBaseImpl)kbase).getRete().getObjectTypeNodes();
         for ( ObjectTypeNode n : nodes ) {
             if ( ((ClassObjectType)n.getObjectType()).getClassType().getSimpleName().equals( nodeName ) ) {
@@ -1845,7 +1854,7 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         }
         return null;
     }
-
+    
     @Test(timeout = 5000)
     public void testNoConstraint2() throws Exception {
         String rule = "package org.drools.compiler.integrationtests\n" +
@@ -1870,28 +1879,6 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         ksession.insert(orderItem11);
         ksession.insert(orderItem12);
         ksession.insert(orderItem13);
-
-        int rules = ksession.fireAllRules();
-        assertEquals(1, rules);
-        assertTrue(order1.isDiscounted());
-    }
-
-    @Test(timeout = 5000)
-    public void testEval() throws Exception {
-        String rule = "package org.drools.compiler.integrationtests\n" +
-                "import " + PropertySpecificTest.Order.class.getCanonicalName() + "\n" +
-                "rule R1 when\n" +
-                "   $o : Order()\n" +
-                "   eval($o.getId().equals(\"1\"))" +
-                "then\n" +
-                "   modify( $o ) { setDiscounted( true ) };\n" +
-                "end\n";
-
-        KnowledgeBase kbase = loadKnowledgeBaseFromString(rule);
-        StatefulKnowledgeSession ksession = kbase.newStatefulKnowledgeSession();
-
-        Order order1 = new Order("1");
-        ksession.insert(order1);
 
         int rules = ksession.fireAllRules();
         assertEquals(1, rules);
@@ -2052,8 +2039,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         BetaNode betaNodeC = ( BetaNode ) otnC.getObjectSinkPropagator().getSinks()[0];
         assertEquals( EmptyBitMask.get(), betaNodeC.getRightDeclaredMask() );
         assertEquals( EmptyBitMask.get(), betaNodeC.getRightInferredMask() );
-        assertEquals( calculatePositiveMask(list("k"), sp), betaNodeC.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("a", "k"), sp), betaNodeC.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("j", "k"), sp), betaNodeC.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("a", "j", "k"), sp), betaNodeC.getLeftInferredMask() );
     }
 
     @Test
@@ -2069,8 +2056,8 @@ public class PropertySpecificTest extends CommonTestMethodBase {
         BetaNode betaNodeA = ( BetaNode ) otnA.getObjectSinkPropagator().getSinks()[0];
         assertEquals( calculatePositiveMask(list("i", "b", "c"), sp), betaNodeA.getRightDeclaredMask() );
         assertEquals( calculatePositiveMask(list("i", "b", "c"), sp), betaNodeA.getRightInferredMask() );
-        assertEquals( calculatePositiveMask(list("k"), sp), betaNodeA.getLeftDeclaredMask() );
-        assertEquals( calculatePositiveMask(list("a", "k"), sp), betaNodeA.getLeftInferredMask() );
+        assertEquals( calculatePositiveMask(list("j", "k"), sp), betaNodeA.getLeftDeclaredMask() );
+        assertEquals( calculatePositiveMask(list("a", "j", "k"), sp), betaNodeA.getLeftInferredMask() );
 
         BetaNode betaNodeC = ( BetaNode ) otnC.getObjectSinkPropagator().getSinks()[0];
         assertEquals( EmptyBitMask.get(), betaNodeC.getRightDeclaredMask());

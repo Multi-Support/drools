@@ -16,6 +16,13 @@
 
 package org.drools.core.reteoo;
 
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.util.Collection;
+import java.util.List;
+
 import org.drools.core.base.ClassObjectType;
 import org.drools.core.common.BaseNode;
 import org.drools.core.common.RuleBasePartitionId;
@@ -26,12 +33,6 @@ import org.drools.core.spi.ObjectType;
 import org.drools.core.util.bitmask.AllSetBitMask;
 import org.drools.core.util.bitmask.BitMask;
 import org.drools.core.util.bitmask.EmptyBitMask;
-
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.util.List;
 
 import static org.drools.core.reteoo.PropertySpecificUtil.*;
 
@@ -87,6 +88,8 @@ public abstract class LeftTupleSource extends BaseNode
               context != null ? context.getPartitionId() : RuleBasePartitionId.MAIN_PARTITION,
               context != null && context.getKnowledgeBase().getConfiguration().isMultithreadEvaluation());
         this.sink = EmptyLeftTupleSinkAdapter.getInstance();
+
+        initMemoryId( context );
     }
 
     // ------------------------------------------------------------
@@ -247,22 +250,20 @@ public abstract class LeftTupleSource extends BaseNode
         }
 
         Class objectClass = ((ClassWireable) objectType).getClassType();
-        if ( isPropertyReactive(context, objectClass) ) {
-            // TODO: at the moment if pattern is null (e.g. for eval node) we cannot calculate the mask, so we leave it to 0
-            if ( pattern != null ) {
-                List<String> leftListenedProperties = pattern.getListenedProperties();
-                List<String> settableProperties = getSettableProperties( context.getKnowledgeBase(), objectClass );
-                leftDeclaredMask = calculatePositiveMask( leftListenedProperties, settableProperties );
-                leftNegativeMask = calculateNegativeMask( leftListenedProperties, settableProperties );
-                setLeftListenedProperties(leftListenedProperties);
-            }
+        // if pattern is null (e.g. for eval or query nodes) we cannot calculate the mask, so we set it all
+        if ( pattern != null && isPropertyReactive(context, objectClass) ) {
+            Collection<String> leftListenedProperties = pattern.getListenedProperties();
+            List<String> settableProperties = getAccessibleProperties( context.getKnowledgeBase(), objectClass );
+            leftDeclaredMask = calculatePositiveMask( leftListenedProperties, settableProperties );
+            leftNegativeMask = calculateNegativeMask( leftListenedProperties, settableProperties );
+            setLeftListenedProperties(leftListenedProperties);
         } else {
             // if property specific is not on, then accept all modification propagations
             leftDeclaredMask = AllSetBitMask.get();
         }
     }
 
-    protected void setLeftListenedProperties(List<String> leftListenedProperties) { }
+    protected void setLeftListenedProperties(Collection<String> leftListenedProperties) { }
 
     protected void initInferredMask(LeftTupleSource leftInput) {
         LeftTupleSource unwrappedLeft = unwrapLeftInput(leftInput);

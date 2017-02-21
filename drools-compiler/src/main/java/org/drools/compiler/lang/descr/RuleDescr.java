@@ -16,16 +16,22 @@
 
 package org.drools.compiler.lang.descr;
 
+import org.drools.core.definitions.rule.impl.RuleImpl;
 import org.drools.core.rule.Dialectable;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.drools.core.util.StringUtils.extractFirstIdentifier;
 
 public class RuleDescr extends AnnotatedBaseDescr
     implements
@@ -36,6 +42,7 @@ public class RuleDescr extends AnnotatedBaseDescr
     private String                      parentName;
     private String                      documentation;
     private Map<String, AttributeDescr> attributes;
+    private UnitDescr                   unit;
 
     private AndDescr            lhs;
     private Object              consequence;
@@ -89,6 +96,7 @@ public class RuleDescr extends AnnotatedBaseDescr
         attributes = (Map<String, AttributeDescr>) in.readObject();
         className = (String) in.readObject();
         loadOrder = in.readInt();
+        unit = (UnitDescr) in.readObject();
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
@@ -105,6 +113,21 @@ public class RuleDescr extends AnnotatedBaseDescr
         out.writeObject( attributes );
         out.writeObject( className );
         out.writeInt(loadOrder);
+        out.writeObject(unit);
+    }
+
+    public RuleImpl toRule() {
+        RuleImpl rule = new RuleImpl( name );
+        rule.setResource( getResource() );
+        return rule;
+    }
+
+    public UnitDescr getUnit() {
+        return unit;
+    }
+
+    public void setUnit( UnitDescr unit ) {
+        this.unit = unit;
     }
 
     public String getName() {
@@ -319,6 +342,34 @@ public class RuleDescr extends AnnotatedBaseDescr
         } else if ( !parentName.equals( other.parentName ) ) return false;
         return true;
     }
-    
-    
+
+
+    public Collection<String> lookAheadFieldsOfIdentifier( PatternDescr patternDescr ) {
+        String identifier = patternDescr.getIdentifier();
+        if (identifier == null) {
+            return Collections.emptyList();
+        }
+
+        Collection<String> props = new HashSet<>();
+        boolean found = false;
+        for (PatternDescr pattern : lhs.getAllPatternDescr()) {
+            if (pattern == patternDescr) {
+                found = true;
+                continue;
+            }
+            if (pattern instanceof PatternDescr) {
+                for (BaseDescr expr : ( (PatternDescr) pattern ).getDescrs()) {
+                    if (expr instanceof ExprConstraintDescr) {
+                        String text = expr.getText();
+                        int pos = text.indexOf( identifier + "." );
+                        if ( pos == 0 || ( pos > 0 && !Character.isJavaIdentifierPart(text.charAt( pos-1 ))) ) {
+                            String prop = extractFirstIdentifier(text, pos + identifier.length() + 1);
+                            props.add(prop);
+                        }
+                    }
+                }
+            }
+        }
+        return props;
+    }
 }

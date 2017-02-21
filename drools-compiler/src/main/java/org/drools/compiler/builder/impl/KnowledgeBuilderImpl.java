@@ -15,12 +15,35 @@
 
 package org.drools.compiler.builder.impl;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
+import java.io.StringReader;
+import java.lang.reflect.Array;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
+import java.util.UUID;
+
 import org.drools.compiler.compiler.AnnotationDeclarationError;
 import org.drools.compiler.compiler.BPMN2ProcessFactory;
 import org.drools.compiler.compiler.BaseKnowledgeBuilderResultImpl;
 import org.drools.compiler.compiler.ConfigurableSeverityResult;
 import org.drools.compiler.compiler.DecisionTableFactory;
 import org.drools.compiler.compiler.DeprecatedResourceTypeWarning;
+import org.drools.compiler.compiler.DescrBuildError;
 import org.drools.compiler.compiler.Dialect;
 import org.drools.compiler.compiler.DialectCompiletimeRegistry;
 import org.drools.compiler.compiler.DrlParser;
@@ -132,28 +155,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.Reader;
-import java.io.StringReader;
-import java.lang.reflect.Array;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Stack;
-import java.util.UUID;
-
 import static org.drools.core.impl.KnowledgeBaseImpl.registerFunctionClassAndInnerClasses;
 import static org.drools.core.util.StringUtils.isEmpty;
 import static org.drools.core.util.StringUtils.ucFirst;
@@ -167,8 +168,6 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
     private List<KnowledgeBuilderResult>                   results;
 
     private final KnowledgeBuilderConfigurationImpl configuration;
-
-    public static final RuleBuilder ruleBuilder        = new RuleBuilder();
 
     /**
      * Optional RuleBase for incremental live building
@@ -1122,8 +1121,6 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
     }
 
     private Map<String, RuleBuildContext> preProcessRules(PackageDescr packageDescr, PackageRegistry pkgRegistry) {
-        Map<String, RuleBuildContext> ruleCxts = buildRuleBuilderContext(packageDescr.getRules());
-
         InternalKnowledgePackage pkg = pkgRegistry.getPackage();
         if (this.kBase != null) {
             boolean needsRemoval = false;
@@ -1176,14 +1173,35 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
         }
 
         // Pre Process each rule, needed for Query signuture registration
-        for (RuleDescr ruleDescr : packageDescr.getRules()) {
-            if (filterAccepts(ResourceChange.Type.RULE, ruleDescr.getNamespace(), ruleDescr.getName()) ) {
-                RuleBuildContext ruleBuildContext = ruleCxts.get(ruleDescr.getName());
-                ruleBuilder.preProcess(ruleBuildContext);
-                pkg.addRule(ruleBuildContext.getRule());
+        return buildRuleBuilderContext(packageDescr.getRules());
+    }
+
+    private Map<String, RuleBuildContext> buildRuleBuilderContext(List<RuleDescr> rules) {
+        Map<String, RuleBuildContext> map = new HashMap<String, RuleBuildContext>();
+        for (RuleDescr ruleDescr : rules) {
+            if (ruleDescr.getResource() == null) {
+                ruleDescr.setResource(resource);
             }
+
+            PackageRegistry pkgRegistry = this.pkgRegistryMap.get(ruleDescr.getNamespace());
+
+            InternalKnowledgePackage pkg = pkgRegistry.getPackage();
+            DialectCompiletimeRegistry ctr = pkgRegistry.getDialectCompiletimeRegistry();
+            RuleBuildContext context = new RuleBuildContext(this,
+                                                            ruleDescr,
+                                                            ctr,
+                                                            pkg,
+                                                            ctr.getDialect(pkgRegistry.getDialect()));
+
+            if (filterAccepts(ResourceChange.Type.RULE, ruleDescr.getNamespace(), ruleDescr.getName()) ) {
+                RuleBuilder.preProcess(context);
+                pkg.addRule(context.getRule());
+            }
+
+            map.put(ruleDescr.getName(), context);
         }
-        return ruleCxts;
+
+        return map;
     }
 
     private void sortRulesByDependency(PackageDescr packageDescr) {
@@ -1257,7 +1275,7 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
                 if (parents.get(ruleDescr.getParentName()) != null
                     && (sorted.containsKey(ruleDescr.getName()) || parents.containsKey(ruleDescr.getName()))) {
                     circularDep = true;
-                    results.add( new RuleBuildError( new RuleImpl( ruleDescr.getName() ), ruleDescr, null,
+                    results.add( new RuleBuildError( ruleDescr.toRule(), ruleDescr, null,
                                                      "Circular dependency in rules hierarchy" ) );
                     break;
                 }
@@ -1281,7 +1299,7 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
         if (candidateRules.size() > 0) {
             msg += " >> did you mean any of :" + candidateRules;
         }
-        results.add(new RuleBuildError(new RuleImpl(ruleDescr.getName()), ruleDescr, msg,
+        results.add(new RuleBuildError(ruleDescr.toRule(), ruleDescr, msg,
                                        "Unable to resolve parent rule, please check that both rules are in the same package"));
     }
 
@@ -1648,7 +1666,7 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
                     return;
                 }
                 pkg.addGlobal(identifier, clazz);
-                this.globals.put(identifier, clazz);
+                addGlobal(identifier, clazz);
                 if (kBase != null) {
                     kBase.addGlobal(identifier, clazz);
                 }
@@ -1749,6 +1767,13 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
                                                                 wd.getPattern(),
                                                                 null);
 
+                if (pattern.getXpathConstraint() != null) {
+                    context.addError( new DescrBuildError( wd,
+                                                           context.getParentDescr(),
+                                                           null,
+                                                           "OOpath expression " + pattern.getXpathConstraint() + " not allowed in window declaration\n" ) );
+                }
+
                 window.setPattern(pattern);
             } else {
                 throw new RuntimeException(
@@ -1797,34 +1822,12 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
         }
     }
 
-    private Map<String, RuleBuildContext> buildRuleBuilderContext(List<RuleDescr> rules) {
-        Map<String, RuleBuildContext> map = new HashMap<String, RuleBuildContext>();
-        for (RuleDescr ruleDescr : rules) {
-            if (ruleDescr.getResource() == null) {
-                ruleDescr.setResource(resource);
-            }
-
-            PackageRegistry pkgRegistry = this.pkgRegistryMap.get(ruleDescr.getNamespace());
-
-            InternalKnowledgePackage pkg = pkgRegistry.getPackage();
-            DialectCompiletimeRegistry ctr = pkgRegistry.getDialectCompiletimeRegistry();
-            RuleBuildContext context = new RuleBuildContext(this,
-                                                            ruleDescr,
-                                                            ctr,
-                                                            pkg,
-                                                            ctr.getDialect(pkgRegistry.getDialect()));
-            map.put(ruleDescr.getName(), context);
-        }
-
-        return map;
-    }
-
     private void addRule(RuleBuildContext context) {
         final RuleDescr ruleDescr = context.getRuleDescr();
 
         InternalKnowledgePackage pkg = context.getPkg();
 
-        ruleBuilder.build(context);
+        RuleBuilder.build(context);
 
         this.results.addAll(context.getErrors());
         this.results.addAll(context.getWarnings());
@@ -1922,6 +1925,10 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
 
     public Map<String, Class<?>> getGlobals() {
         return this.globals;
+    }
+
+    public void addGlobal(String name, Class<?> type) {
+        globals.put( name, type );
     }
 
     /**
@@ -2388,7 +2395,7 @@ public class KnowledgeBuilderImpl implements KnowledgeBuilder {
                     } else {
                         if ( Class.class.equals( m.getReturnType() ) ) {
                             String className = annotationDescr.getValueAsString(key).replace( ".class", "" );
-                            annotationDescr.setKeyValue( key, typeResolver.resolveType( className ).getName() + ".class" );
+                            annotationDescr.setKeyValue( key, typeResolver.resolveType( className ) );
                         } else if ( m.getReturnType().isAnnotation() ) {
                             annotationDescr.setKeyValue( key,
                                                          normalizeAnnotation( typeResolver,

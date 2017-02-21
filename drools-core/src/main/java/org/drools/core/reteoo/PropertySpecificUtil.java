@@ -15,6 +15,7 @@
 
 package org.drools.core.reteoo;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.drools.core.base.ClassObjectType;
@@ -51,6 +52,10 @@ public class PropertySpecificUtil {
         return EmptyButLastBitMask.get();
     }
 
+    public static BitMask allSetBitMask() {
+        return AllSetBitMask.get();
+    }
+
     public static BitMask allSetButTraitBitMask() {
         return AllSetButLastBitMask.get();
     }
@@ -59,20 +64,20 @@ public class PropertySpecificUtil {
         return mask instanceof AllSetButLastBitMask;
     }
 
-    public static BitMask calculatePositiveMask(List<String> listenedProperties, List<String> settableProperties) {
-        return calculatePatternMask(listenedProperties, settableProperties, true);
+    public static BitMask calculatePositiveMask( Collection<String> listenedProperties, List<String> accessibleProperties ) {
+        return calculatePatternMask(listenedProperties, accessibleProperties, true);
     }
 
-    public static BitMask calculateNegativeMask(List<String> listenedProperties, List<String> settableProperties) {
-        return calculatePatternMask(listenedProperties, settableProperties, false);
+    public static BitMask calculateNegativeMask(Collection<String> listenedProperties, List<String> accessibleProperties) {
+        return calculatePatternMask(listenedProperties, accessibleProperties, false);
     }
 
-    private static BitMask calculatePatternMask(List<String> listenedProperties, List<String> settableProperties, boolean isPositive) {
+    private static BitMask calculatePatternMask(Collection<String> listenedProperties, List<String> accessibleProperties, boolean isPositive) {
         if (listenedProperties == null) {
             return EmptyBitMask.get();
         }
 
-        BitMask mask = getEmptyPropertyReactiveMask(settableProperties.size());
+        BitMask mask = getEmptyPropertyReactiveMask(accessibleProperties.size());
         if (listenedProperties.contains( TraitableBean.TRAITSET_FIELD_NAME )) {
             if (isPositive && listenedProperties.contains( TraitableBean.TRAITSET_FIELD_NAME ) ) {
                 mask = mask.set(TRAITABLE_BIT);
@@ -89,7 +94,7 @@ public class PropertySpecificUtil {
                 propertyName = propertyName.substring(1);
             }
 
-            mask = setPropertyOnMask(mask, settableProperties, propertyName);
+            mask = setPropertyOnMask(mask, accessibleProperties, propertyName);
         }
         return mask;
     }
@@ -110,7 +115,7 @@ public class PropertySpecificUtil {
         return mask.isSet(index + CUSTOM_BITS_OFFSET);
     }
 
-    public static List<String> getSettableProperties(InternalKnowledgeBase kBase, Class<?> nodeClass) {
+    public static List<String> getAccessibleProperties( InternalKnowledgeBase kBase, Class<?> nodeClass ) {
         return kBase.getOrCreateExactTypeDeclaration(nodeClass).getAccessibleProperties();
     }
 }
